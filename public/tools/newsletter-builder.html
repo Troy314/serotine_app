@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sérotine · Générateur de newsletter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Re-themed to match the Sérotine app's own violet/green palette
+       (see Serotine_App/src/styles.css's [data-theme="dark"] block) —
+       variable *names* kept as-is (they're used all over this file) so
+       only the values changed, not every rule that references them. */
+    --navy-950:#170f1b;
+    --navy-900:#241a2a;
+    --navy-800:#2c2033;
+    --navy-700:#3d2e46;
+    --line:rgba(177,237,78,.18);
+    --aurora:#b1ed4e;
+    --aurora-soft:#db9ced;
+    --amber:#F2B84B;
+    --paper:#FAF6EC;
+    --ink:#3a2c40;
+    --ink-soft:#b6a3c1;
+    --text:#f1ecf4;
+    --danger:#ef7c70;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--navy-950);
+    color:var(--text);
+    font-family:'Space Grotesk',Arial,sans-serif;
+    font-size:14px;
+    overflow:hidden;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;}
+
+  /* Topbar */
+  .topbar{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;row-gap:8px;
+    padding:12px 20px;background:var(--navy-900);
+    border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px;flex-shrink:0;}
+  .brand-mark{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:600;font-size:19px;color:var(--aurora-soft);}
+  .brand-sub{font-size:11px;color:var(--ink-soft);letter-spacing:.02em;}
+  .topbar-spacer{flex:1;}
+  .subject-inline{display:flex;gap:8px;flex:1;max-width:520px;}
+  .subject-inline input{
+    background:var(--navy-800);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;width:100%;
+  }
+  .subject-inline input::placeholder{color:var(--ink-soft);}
+  .btn{
+    border:1px solid var(--line);background:var(--navy-800);color:var(--text);
+    padding:9px 14px;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:13px;
+    font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+    transition:border-color .15s, background .15s;
+  }
+  .btn:hover{border-color:var(--aurora-soft);}
+  .btn-primary{background:var(--aurora);border-color:var(--aurora);color:#08281d;font-weight:700;}
+  .btn-primary:hover{background:var(--aurora-soft);}
+  .btn-ghost{background:transparent;}
+  .btn.small{padding:4px 8px;font-size:11px;border-radius:6px;}
+  .mobile-toggle{display:none;}
+
+  /* Main layout */
+  .main{display:flex;flex:1;min-height:0;}
+  .sidebar-blocks{
+    width:225px;flex-shrink:0;overflow-y:auto;background:var(--navy-900);
+    border-right:1px solid var(--line);padding:18px 14px;
+    transition:width .15s ease;
+  }
+  /* Desktop close/collapse — closed by default (see the aside's initial
+     class in the markup below), independent of the mobile drawer's
+     .open/transform mechanism further down, which only applies under the
+     860px breakpoint. */
+  .sidebar-blocks.collapsed{width:0;padding:0;border-right:none;overflow:hidden;}
+  .sidebar-blocks h4{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft);
+    margin:18px 0 8px;font-weight:600;
+  }
+  .sidebar-blocks h4:first-child{margin-top:0;}
+  .block-btn{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--navy-800);border:1px solid var(--line);color:var(--text);
+    padding:9px 10px;border-radius:8px;margin-bottom:7px;cursor:pointer;font-family:inherit;font-size:12.5px;
+    transition:border-color .15s, transform .1s;
+  }
+  .block-btn:hover{border-color:var(--aurora);transform:translateX(2px);}
+  .block-btn.dragging-source{opacity:.4;}
+  .block-btn .cb-del{margin-left:auto;background:none;border:none;color:#a89fc9;cursor:pointer;font-size:11px;padding:2px 4px;}
+  .block-btn .cb-del:hover{color:var(--danger);}
+  .canvas.drop-target-empty{outline:2px dashed var(--aurora);outline-offset:-6px;}
+  .custom-block-panel{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+  .btn-block{display:block;width:100%;text-align:center;margin-bottom:8px;}
+  .block-btn .ic{
+    width:26px;height:26px;border-radius:6px;background:var(--navy-700);
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--aurora-soft);flex-shrink:0;
+  }
+  .hint{font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);}
+
+  /* Canvas */
+  .canvas-wrap{flex:1;overflow-y:auto;padding:36px 24px 120px;background:
+     radial-gradient(ellipse at top, #3d2e46 0%, var(--navy-950) 60%);
+     min-width:0;
+  }
+  .canvas{width:640px;max-width:100%;margin:0 auto;background:var(--paper);border-radius:6px;
+    box-shadow:0 30px 70px rgba(0,0,0,.55);overflow:hidden;}
+  .canvas-header{
+    padding:18px 24px;background:var(--navy-800);color:var(--ink-soft);font-size:11.5px;
+    display:flex;justify-content:space-between;border-bottom:1px solid var(--line);
+  }
+  .canvas-empty{padding:70px 30px;text-align:center;color:#9b96b8;}
+  .canvas-empty b{color:var(--ink);}
+
+  .builder-block{position:relative;border-bottom:1px solid #E9E3D2;background:#fff;}
+  .builder-block:nth-child(odd){background:#FEFCF7;}
+  .bb-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 16px;background:#F1EDDD;border-bottom:1px solid #E9E3D2;
+  }
+  .bb-tag{font-size:11px;font-weight:700;color:#5B5678;display:flex;align-items:center;gap:6px;}
+  .bb-drag{cursor:grab;color:#9b96a8;font-size:14px;padding:2px 5px;user-select:none;letter-spacing:-2px;}
+  .bb-drag:active{cursor:grabbing;}
+  .builder-block.dragging{opacity:.35;}
+  .builder-block.drag-over{outline:2px dashed var(--aurora);outline-offset:-2px;}
+  .bb-tools{display:flex;gap:4px;}
+  .bb-tools button{
+    width:24px;height:24px;border-radius:5px;border:1px solid #D9D2BC;background:#fff;
+    cursor:pointer;font-size:11px;color:#5B5678;display:flex;align-items:center;justify-content:center;
+  }
+  .bb-tools button:hover{border-color:var(--aurora);color:#0d7a53;}
+  .bb-tools button.bb-danger:hover{border-color:var(--danger);color:#b8384b;}
+  .bb-body{padding:14px 16px;display:flex;flex-direction:column;gap:9px;}
+  .field-row{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:#5B5678;}
+  .field-row span{font-weight:600;}
+  .field-row input[type=text],.field-row input[type=number],.field-row input[type=url],
+  .field-row textarea,.field-row select{
+    font-family:'Space Grotesk',Arial,sans-serif;font-size:12.5px;color:#1C1B2E;
+    border:1px solid #DAD3BE;border-radius:6px;padding:7px 8px;background:#fff;width:100%;
+  }
+  .field-row textarea{resize:vertical;font-family:inherit;}
+  .field-pair{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .col-group{border:1px dashed #DAD3BE;border-radius:8px;padding:9px;display:flex;flex-direction:column;gap:8px;}
+  .col-group b{font-size:11px;color:#5B5678;}
+  .social-rows{display:flex;flex-direction:column;gap:6px;}
+  .social-row-line{display:grid;grid-template-columns:92px 1fr 74px 24px;gap:5px;align-items:center;}
+  .add-link-btn{align-self:flex-start;background:none;border:1px dashed #B9B39C;border-radius:6px;
+    padding:6px 10px;font-size:11.5px;color:#5B5678;cursor:pointer;}
+  .add-link-btn:hover{border-color:var(--aurora);color:#0d7a53;}
+
+  /* Side panel */
+  .side-panel{width:370px;flex-shrink:0;background:var(--navy-900);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;overflow:hidden;position:relative;}
+  .panel-resize-handle{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:6;}
+  .panel-resize-handle:hover,.panel-resize-handle.active{background:rgba(63,191,149,.3);}
+  .tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .tab-btn{flex:1;padding:12px;background:none;border:none;color:var(--ink-soft);font-family:inherit;
+    font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;}
+  .tab-btn.active{color:var(--text);border-color:var(--aurora);}
+  .tab-content{flex:1;overflow-y:auto;display:none;min-height:0;}
+  .tab-content.active{display:flex;flex-direction:column;min-height:0;}
+  .preview-toolbar{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .pw-btn{background:var(--navy-800);border:1px solid var(--line);color:var(--ink-soft);border-radius:6px;
+    padding:6px 9px;font-family:inherit;font-size:11.5px;cursor:pointer;}
+  .pw-btn.active{color:var(--text);border-color:var(--aurora);background:var(--navy-700);}
+  .btn-expand{margin-left:auto;background:var(--navy-800);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:13px;}
+  .btn-expand:hover{border-color:var(--aurora-soft);}
+  .preview-scroll{flex:1;min-height:0;overflow:auto;display:flex;justify-content:center;
+    background:#282B4D;padding:16px;}
+  #previewFrame{flex-shrink:0;width:640px;max-width:none;height:100%;min-height:100%;border:1px solid var(--line);
+    background:#EDEAE0;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  .side-panel.expanded{position:fixed;top:66px;right:16px;bottom:16px;width:min(900px,92vw);z-index:40;
+    border-radius:12px;box-shadow:0 40px 90px rgba(0,0,0,.6);border:1px solid var(--line);}
+  .settings-body{padding:18px;display:flex;flex-direction:column;gap:20px;}
+  .settings-section h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);
+    margin:0 0 10px;}
+  .settings-section .field-row{color:var(--ink-soft);}
+  .settings-section .field-row input,.settings-section .field-row textarea,.settings-section .field-row select{
+    background:var(--navy-800);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px;
+    font-family:inherit;font-size:12.5px;width:100%;
+  }
+  .settings-section .field-row input[type=color]{padding:2px;height:34px;cursor:pointer;}
+  .settings-section .field-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  .settings-section .field-row{margin-top:10px;}
+  .settings-section .field-row:first-child{margin-top:0;}
+
+  /* Export modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(6,7,20,.72);display:none;
+    align-items:center;justify-content:center;z-index:50;}
+  .modal-overlay.open{display:flex;}
+  .modal{width:min(920px,92vw);height:min(640px,86vh);background:var(--navy-900);border:1px solid var(--line);
+    border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.6);}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+    border-bottom:1px solid var(--line);}
+  .modal-head h3{margin:0;font-family:'Fraunces',serif;font-weight:600;font-size:17px;}
+  .modal-tabs{display:flex;gap:6px;padding:10px 18px 0;}
+  .modal-tab{background:none;border:none;color:var(--ink-soft);padding:8px 4px;font-family:inherit;
+    font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;}
+  .modal-tab.active{color:var(--text);border-color:var(--amber);}
+  .modal-body{flex:1;min-height:0;padding:14px 18px 0;display:flex;flex-direction:column;}
+  .modal-pane{flex:1;min-height:0;display:none;}
+  .modal-pane.active{display:flex;flex-direction:column;}
+  #exportPreviewFrame{flex:1;width:100%;border:1px solid var(--line);border-radius:8px;background:#EDEAE0;}
+  #exportCode{flex:1;width:100%;resize:none;background:var(--navy-950);color:#B9E8D3;border:1px solid var(--line);
+    border-radius:8px;padding:12px;font-family:'SF Mono',Consolas,monospace;font-size:11.5px;line-height:1.5;}
+  .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line);}
+  .copied-flash{font-size:12px;color:var(--aurora-soft);align-self:center;margin-right:auto;opacity:0;transition:opacity .2s;}
+  .copied-flash.show{opacity:1;}
+  .export-warnings{padding:12px 18px 0;max-height:110px;overflow-y:auto;}
+  .ew-item{font-size:12px;color:var(--amber);padding:3px 0;}
+  .ew-ok{font-size:12.5px;color:var(--aurora-soft);padding:3px 0;}
+
+  /* Dropdown (Modèles) */
+  .dropdown{position:relative;}
+  .dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--navy-900);
+    border:1px solid var(--line);border-radius:10px;padding:6px;display:none;min-width:210px;z-index:25;
+    box-shadow:0 20px 45px rgba(0,0,0,.5);}
+  .dropdown-menu.open{display:block;}
+  .dropdown-item{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);
+    padding:9px 10px;border-radius:7px;font-family:inherit;font-size:12.5px;cursor:pointer;}
+  .dropdown-item:hover{background:var(--navy-800);}
+
+  /* Rich text mini-toolbar */
+  .rt-toolbar{display:flex;gap:4px;margin-bottom:2px;}
+  .rt-toolbar button{width:26px;height:24px;border-radius:5px;border:1px solid #DAD3BE;background:#fff;
+    font-size:11.5px;font-weight:700;cursor:pointer;color:#5B5678;font-family:Georgia,serif;}
+  .rt-toolbar button:hover{border-color:var(--aurora);color:#0d7a53;}
+  .rt-toolbar button.rt-i{font-style:italic;}
+  .rt-hint{font-size:10.5px;color:#9b96a8;margin-top:-2px;}
+
+  @media (max-width:980px){
+    .subject-inline{display:none;}
+  }
+  @media (max-width:860px){
+    .mobile-toggle{display:inline-flex;}
+    .sidebar-blocks,.side-panel{position:fixed;top:97px;bottom:0;z-index:30;box-shadow:0 0 40px rgba(0,0,0,.5);
+      transform:translateX(-110%);transition:transform .2s;}
+    .sidebar-blocks{left:0;}
+    .side-panel{right:0;transform:translateX(110%);}
+    .sidebar-blocks.open{transform:translateX(0);}
+    .side-panel.open{transform:translateX(0);}
+    .canvas-wrap{padding:24px 12px 120px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button class="btn btn-ghost small" id="toggleBlocks">🧱 Blocs</button>
+    <div class="brand"><span class="brand-mark">Sérotine</span><span class="brand-sub">générateur de newsletter</span></div>
+    <div class="subject-inline">
+      <input type="text" id="quickSubject" placeholder="Objet de l'e-mail…">
+      <input type="text" id="quickPreheader" placeholder="Pré-en-tête…">
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="dropdown" id="templatesDropdown">
+      <button class="btn btn-ghost" id="templatesBtn">📋 Modèles</button>
+      <div class="dropdown-menu" id="templatesMenu">
+        <button class="dropdown-item" data-template="announce">Annonce de numéro</button>
+        <button class="dropdown-item" data-template="digest">Digest d’articles</button>
+        <button class="dropdown-item" data-template="support">Relance don</button>
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="saveJsonBtn" title="Sauvegarder le brouillon en cours">💾 Sauvegarder</button>
+    <button class="btn btn-ghost" id="importJsonBtn" title="Reprendre un brouillon sauvegardé">📂 Importer</button>
+    <input type="file" id="importJsonInput" accept="application/json" style="display:none">
+    <button class="btn btn-ghost" id="resetBtn">↺ Nouveau</button>
+    <button class="btn" id="exportOpenBtn">⇩ Exporter</button>
+    <button class="btn btn-ghost small mobile-toggle" id="togglePanel">⚙️ Aperçu</button>
+  </div>
+
+  <div class="main">
+    <aside class="sidebar-blocks collapsed" id="sidebarBlocks"></aside>
+
+    <div class="canvas-wrap">
+      <div class="canvas">
+        <div class="canvas-header"><span>Aperçu de la structure</span><span id="blockCount">0 blocs</span></div>
+        <div id="canvas"></div>
+      </div>
+    </div>
+
+    <aside class="side-panel" id="sidePanel">
+      <div class="panel-resize-handle" id="panelResizeHandle" title="Glisser pour redimensionner"></div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="preview">Aperçu e-mail</button>
+        <button class="tab-btn" data-tab="settings">Réglages</button>
+      </div>
+      <div class="tab-content active" id="tab-preview">
+        <div class="preview-toolbar">
+          <button class="pw-btn" data-w="375">📱 Mobile</button>
+          <button class="pw-btn active" data-w="640">✉️ E-mail</button>
+          <button class="pw-btn" data-w="100%">↔ Large</button>
+          <button class="pw-btn" id="darkSimBtn" title="Simuler le rendu de certains clients mail en mode sombre">🌙 Simu. sombre</button>
+          <button class="btn-expand" id="expandPreviewBtn" title="Agrandir l'aperçu">⤢</button>
+        </div>
+        <div class="preview-scroll"><iframe id="previewFrame" title="Aperçu de la newsletter"></iframe></div>
+      </div>
+      <div class="tab-content" id="tab-settings">
+        <div class="settings-body" id="settingsBody"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Exporter la newsletter</h3>
+      <button class="btn btn-ghost small" id="exportCloseBtn">✕ Fermer</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-mtab="prev">Aperçu final</button>
+      <button class="modal-tab" data-mtab="code">Code HTML</button>
+      <button class="modal-tab" data-mtab="send">Envoyer</button>
+    </div>
+    <div class="export-warnings" id="exportWarnings"></div>
+    <div class="modal-body">
+      <div class="modal-pane active" id="mpane-prev"><iframe id="exportPreviewFrame" title="Aperçu final"></iframe></div>
+      <div class="modal-pane" id="mpane-code"><textarea id="exportCode" readonly spellcheck="false"></textarea></div>
+      <div class="modal-pane" id="mpane-send" style="padding:20px 26px;overflow-y:auto;">
+        <div id="brevoDisconnectedBox" style="display:none;">
+          <p class="hint">Brevo n'est pas connecté (ou vous n'êtes pas administrateur du hub). Configurez la clé API
+          dans <b>Administration → Newsletter</b> pour pouvoir envoyer depuis cet outil.</p>
+        </div>
+        <div id="brevoConnectedBox" style="display:none;">
+          <label class="field-row" style="margin-bottom:6px;">
+            <span>1. Envoyer un test à — vérifiez la réception avant d'envoyer à tout le monde</span>
+          </label>
+          <div class="field-pair">
+            <input type="email" id="testSendEmail" placeholder="vous@exemple.fr">
+            <button class="btn" id="testSendBtn" type="button">Envoyer le test</button>
+          </div>
+          <div id="testSendResult" style="margin-top:8px;"></div>
+
+          <label class="field-row" style="margin-top:22px;margin-bottom:6px;">
+            <span>2. Destinataires — un e-mail par ligne (pas encore de liste Brevo, saisie à la main)</span>
+          </label>
+          <textarea id="sendRecipients" rows="6" placeholder="alice@exemple.fr&#10;bob@exemple.fr" disabled></textarea>
+          <button class="btn btn-primary" id="sendAllBtn" type="button" disabled style="margin-top:10px;">Envoyer à tous</button>
+          <div id="sendAllResult" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="copied-flash" id="copiedFlash">Copié dans le presse-papiers ✓</span>
+      <button class="btn" id="copyBtn">📋 Copier le code (coller dans Mailchimp / Brevo…)</button>
+      <button class="btn btn-primary" id="downloadBtn">⇩ Télécharger le fichier .html</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customBlockModal">
+  <div class="modal" style="height:min(700px,90vh);">
+    <div class="modal-head">
+      <h3>Nouveau type de bloc</h3>
+      <button class="btn btn-ghost small" id="cbCloseBtn">✕ Fermer</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;padding-bottom:16px;">
+      <div class="settings-section">
+        <h4>Identité</h4>
+        <div class="field-pair">
+          <label class="field-row"><span>Nom du bloc</span><input type="text" id="cbLabel" placeholder="Ex : Encadré podcast"></label>
+          <label class="field-row"><span>Icône (emoji)</span><input type="text" id="cbIcon" placeholder="🎙️" maxlength="4"></label>
+        </div>
+        <label class="field-row" style="margin-top:10px;"><span>Catégorie</span>
+          <select id="cbCategory">
+            <option value="Contenu">Contenu</option>
+            <option value="Médias & liens">Médias &amp; liens</option>
+            <option value="Intégrations" selected>Intégrations</option>
+          </select>
+        </label>
+      </div>
+      <div class="settings-section">
+        <h4>Champs éditables</h4>
+        <div id="cbFieldsList"></div>
+        <button class="add-link-btn" id="cbAddFieldBtn" type="button">+ Ajouter un champ</button>
+      </div>
+      <div class="settings-section">
+        <h4>Gabarit HTML de l'e-mail</h4>
+        <div class="rt-hint" style="margin-bottom:6px;line-height:1.5;">
+          Utilisez <code>{{cle_du_champ}}</code> pour insérer la valeur d'un champ, et <code>{{theme.accent}}</code>,
+          <code>{{theme.accent2}}</code>, <code>{{theme.text}}</code>, <code>{{theme.bg}}</code> pour les couleurs du thème.
+          Le gabarit doit être une ligne de tableau e-mail valide : commencez par <code>&lt;tr&gt;&lt;td&gt;…&lt;/td&gt;&lt;/tr&gt;</code>.
+        </div>
+        <textarea id="cbTemplate" rows="8" style="width:100%;font-family:'SF Mono',Consolas,monospace;font-size:11.5px;background:var(--navy-950);color:#B9E8D3;border:1px solid var(--line);border-radius:8px;padding:10px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="cbSaveBtn">✓ Créer ce bloc</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================= STATE ============================= */
+function uid(){ return 'b' + Math.random().toString(36).slice(2,9); }
+const ORIGINAL_PAGE_HTML = document.documentElement.outerHTML;
+let customBlockDefs = (window.__CUSTOM_BLOCKS__ && Array.isArray(window.__CUSTOM_BLOCKS__)) ? window.__CUSTOM_BLOCKS__ : [];
+
+// Default starting content — a real past issue (#7), kept as a ready
+// template rather than a blank canvas: correct logo, Sérotine's own
+// violet/green theme, and the real social-media links, all already
+// filled in. Embedded inline (not fetched) so the tool still works
+// opened as a plain file, no server round-trip on load. Article
+// text/images are that issue's own — meant to be edited/replaced for
+// the next one, not treated as fixed boilerplate the way header/theme/
+// footer/social effectively are.
+let state = JSON.parse(`{
+  "meta": {
+    "subject": "💫 Sérotine — le nouveau numéro est arrivé",
+    "preheader": "Astrophysique, poésie et sudoku : de quoi occuper vos soirées.",
+    "viewInBrowserUrl": ""
+  },
+  "header": {
+    "title": "Sérotine",
+    "logoUrl": "https://serotine.fr/media/logo_serotine_site.svg",
+    "logoWidth": 280,
+    "bg": "#65466e",
+    "accent": "#65466e"
+  },
+  "theme": {
+    "bg": "#fcf8f8",
+    "text": "#1C1B2E",
+    "accent": "#65466e",
+    "accent2": "#80ab34",
+    "line": "#E7E1CE",
+    "preventDarkMode": true
+  },
+  "footer": {
+    "text": "Sérotine, un souffle de science, est un webzine associatif porté par AurorAlpes : accès libre, écrit et illustré par des bénévoles passionné·es de sciences.",
+    "address": "AurorAlpes · Grenoble, France",
+    "email": "webzine@auroralpes.fr",
+    "unsubscribeUrl": "https://framaforms.org/newsletter-serotine-1777624449",
+    "bg": "#0E1024"
+  },
+  "blocks": [
+    {
+      "id": "babw2dty",
+      "type": "heading",
+      "data": { "text": "💫 Le nouveau numéro est en ligne !", "level": "h1", "align": "center" }
+    },
+    {
+      "id": "be8ozvxu",
+      "type": "text",
+      "data": {
+        "text": "Et c’est déjà notre 7e numéro. Nous espérons que vous prendrez plaisir à découvrir les articles de Sérotine, votre futur webzine scientifique préféré !\\n\\nDans ce numéro, nous retrouvons la **Lune, la plus grande des influenceuse**. Mais de quelle influence parle-t-on exactement ? Nous enchainons ensuite avec un nouveau **Sudoku à propos du champ magnétique** de la Terre. Puis, pour terminer cette saison en beauté, nous vous avons préparé un cocktail artistique ! Découvrez une combinaison entre un poème suivi d’un article sur **l’âge inconnu de la Vieille Tortue Tordue** ! \\n\\nBonne lecture !",
+        "align": "justify"
+      }
+    },
+    {
+      "id": "bij6sr1k",
+      "type": "button",
+      "data": { "text": "Lire le numéro complet →", "url": "https://serotine.fr", "align": "center", "style": "filled" }
+    },
+    { "id": "bpq5u661", "type": "divider", "data": { "style": "line" } },
+    {
+      "id": "bogymgsy",
+      "type": "article",
+      "data": {
+        "image": "https://serotine.fr/media/articles/serotine7_1.webp",
+        "tag": "Astrophysique",
+        "title": "La Lune,  la grande influenceuse !",
+        "excerpt": "Depuis la Terre, la Lune occupe une place importante dans notre ciel. Étant le seul objet astronomique naturel, avec le Soleil, qui ne forme pas seulement un point à l'œil nu, elle nous a intéressé et influencé de bien des manières. Mais à quel point ? Et sommes-nous les seul.es que l’astre ne laisse pas indifférent.es?",
+        "links": [ { "text": "Lire l’article →", "url": "https://serotine.fr" } ]
+      }
+    },
+    {
+      "id": "b37vma4a",
+      "type": "article",
+      "data": {
+        "image": "https://serotine.fr/media/articles/serotine7_2.webp",
+        "tag": "Sudoku",
+        "title": "Physique interne",
+        "excerpt": "Voici une grille inspirée de l’émission live sur les travaux du chercheur Nicolat Gillet. Reconnaissez-vous le noyau terrestre ? Attention à ne pas vous laisser emporter par les remous de la convection, certaines roches plus denses peuvent abîmer votre sonde.",
+        "links": [ { "text": "Lire →", "url": "https://serotine.fr" } ]
+      }
+    },
+    {
+      "id": "bts06ajx",
+      "type": "article",
+      "data": {
+        "image": "https://serotine.fr/media/articles/serotine7_3.webp",
+        "tag": "Poème",
+        "title": "Viellet tortue",
+        "excerpt": "",
+        "links": [ { "text": "Lire →", "url": "https://serotine.fr" } ]
+      }
+    },
+    {
+      "id": "bv1x3oa3",
+      "type": "article",
+      "data": {
+        "image": "https://serotine.fr/media/articles/serotine7_4.webp",
+        "tag": "Biologie",
+        "title": "Vieille Tortue à l’âge inconnu",
+        "excerpt": "Quand on parle de l’âge des tortues, on pense à une espérance de vie pouvant avoisiner les 200 ans. Comme Jonathan, tortue géante des Seychelles, qui va souffler ses 194 bougies. Mais chez les tortues marines, on a beau retourner internet, difficile de trouver ne serait-ce qu’une vraie estimation.",
+        "links": [ { "text": "Lire →", "url": "https://serotine.fr" } ]
+      }
+    },
+    { "id": "b15odtxc", "type": "spacer", "data": { "height": 16 } },
+    {
+      "id": "b1camrkm",
+      "type": "support",
+      "data": {
+        "title": "Nous soutenir",
+        "text": "Sérotine est un média associatif, indépendant et réalisé bénévolement. Chaque don aide à financer l’hébergement du webzine.",
+        "cta": "Faire un don",
+        "ctaUrl": "https://www.helloasso.com/associations/auroralpes/formulaires/3"
+      }
+    },
+    {
+      "id": "bkx7yhnw",
+      "type": "social",
+      "data": {
+        "links": [
+          { "network": "Email", "url": "mailto:webzine@auroralpes.fr", "icon": "https://serotine.fr/media/envelope.svg" },
+          { "network": "Bluesky", "url": "https://bsky.app/profile/serotine-media.bsky.social", "icon": "https://serotine.fr/media/bluesky.svg" },
+          { "network": "Instagram", "url": "https://www.instagram.com/serotine_media/", "icon": "https://serotine.fr/media/square-instagram.svg" },
+          { "network": "LinkedIn", "url": "https://www.linkedin.com/showcase/s%C3%A9rotine-un-souffle-de-science", "icon": "https://serotine.fr/media/linkedin.svg" }
+        ]
+      }
+    }
+  ]
+}`);
+
+function defaultDataFor(type){
+  switch(type){
+    case 'heading': return { text:'Titre de section', level:'h2', align:'left' };
+    case 'text': return { text:'Votre texte ici. Racontez votre histoire, présentez le numéro ou introduisez le sujet du jour.', align:'left' };
+    case 'quote': return { text:'La science est faite d’erreurs, mais d’erreurs qu’il est bon de commettre, car elles mènent peu à peu à la vérité.', author:'Jules Verne', align:'left' };
+    case 'image': return { src:'', alt:'', link:'', caption:'', width:'full' };
+    case 'button': return { text:'Lire l’article →', url:'https://serotine.fr', align:'left', style:'filled' };
+    case 'article': return { image:'', tag:'Astrophysique', tagColor:'#65466e', title:'Titre de l’article', excerpt:'Un court résumé qui donne envie de lire la suite…', links:[{text:'Lire →', url:'https://serotine.fr'}], align:'left' };
+    case 'columns2': return { leftImage:'', leftTitle:'Colonne gauche', leftText:'Texte de la colonne gauche.', leftUrl:'', rightImage:'', rightTitle:'Colonne droite', rightText:'Texte de la colonne droite.', rightUrl:'', align:'left' };
+    case 'video': return { thumbnail:'', videoUrl:'', caption:'Regarder / écouter' };
+    case 'game': return { title:'Le jeu du numéro', description:'Un sudoku scientifique à imprimer ou à résoudre en ligne, pour tester ce que vous avez retenu.', url:'https://serotine.fr', cta:'Jouer →', align:'center' };
+    case 'divider': return { style:'line' };
+    case 'spacer': return { height:24 };
+    case 'social': return { iconBg:'', links:[
+      {network:'Email', url:'mailto:webzine@auroralpes.fr', icon:''},
+      {network:'Bluesky', url:'https://bsky.app/profile/serotine-media.bsky.social', icon:''},
+      {network:'Instagram', url:'https://www.instagram.com/serotine_media/', icon:''}
+    ]};
+    case 'support': return { title:'Nous soutenir', text:'Sérotine est un média associatif, indépendant et réalisé bénévolement. Chaque don aide à financer l’hébergement du webzine.', cta:'Faire un don', ctaUrl:'https://www.helloasso.com/associations/auroralpes/formulaires/3', align:'center' };
+    default: {
+      const def = customBlockDefs.find(function(d){ return d.type === type; });
+      if(def){
+        const data = {};
+        def.fields.forEach(function(f){ data[f.key] = ''; });
+        return data;
+      }
+      return {};
+    }
+  }
+}
+function makeBlock(type, overrides){
+  return { id: uid(), type, data: Object.assign(defaultDataFor(type), overrides||{}) };
+}
+function starterBlocks(){
+  return [
+    makeBlock('heading', { text:'💫 Le nouveau numéro est en ligne !', level:'h1', align:'center' }),
+    makeBlock('text', { text:'Après six mois de reportages, d’illustrations et de nuits blanches, notre nouveau numéro est disponible. Au programme cette fois-ci : un paradoxe magnétique, un poème spatial et un nouveau jeu pour vous creuser les méninges.', align:'center' }),
+    makeBlock('button', { text:'Lire le numéro complet →', url:'https://serotine.fr', align:'center', style:'filled' }),
+    makeBlock('divider', {}),
+    makeBlock('article', { tag:'Astrophysique', title:'D’où vient le champ magnétique de la Terre primitive ?', excerpt:'Un paradoxe qui intrigue les géophysiciens depuis des décennies, expliqué sans jargon.', links:[{text:'Lire l’article →', url:'https://serotine.fr'}, {text:'Écouter le podcast →', url:'https://open.spotify.com/show/6OZqwozSlnA20dJIpdqlPr'}] }),
+    makeBlock('article', { tag:'Poésie', title:'Fusées parallèles', excerpt:'Un poème en écho aux dernières actualités lunaires.', links:[{text:'Lire →', url:'https://serotine.fr'}] }),
+    makeBlock('game', {}),
+    makeBlock('spacer', { height:16 }),
+    makeBlock('support', {}),
+    makeBlock('social', {})
+  ];
+}
+function digestBlocks(){
+  return [
+    makeBlock('heading', { text:'Cette semaine dans Sérotine', level:'h1', align:'center' }),
+    makeBlock('text', { text:'Trois lectures choisies pour vous cette semaine, entre ciel étoilé et petites bêtes.', align:'center' }),
+    makeBlock('divider', {}),
+    makeBlock('article', { tag:'Astrophysique', title:'Titre de l’article 1', excerpt:'Un court résumé qui donne envie de lire la suite.', links:[{text:'Lire →', url:'https://serotine.fr'}] }),
+    makeBlock('article', { tag:'Biologie', title:'Titre de l’article 2', excerpt:'Un court résumé qui donne envie de lire la suite.', links:[{text:'Lire →', url:'https://serotine.fr'}] }),
+    makeBlock('article', { tag:'Sociologie', title:'Titre de l’article 3', excerpt:'Un court résumé qui donne envie de lire la suite.', links:[{text:'Lire →', url:'https://serotine.fr'}] }),
+    makeBlock('quote', {}),
+    makeBlock('social', {})
+  ];
+}
+function reminderSupportBlocks(){
+  return [
+    makeBlock('heading', { text:'On a besoin de votre coup de pouce', level:'h1', align:'center' }),
+    makeBlock('text', { text:'Sérotine est écrit, illustré et publié bénévolement. Pour continuer à exister, le webzine doit financer son hébergement — **chaque don compte**, même un euro.', align:'center' }),
+    makeBlock('support', {}),
+    makeBlock('divider', {}),
+    makeBlock('text', { text:'Merci à celles et ceux qui nous soutiennent déjà. 💫', align:'center' }),
+    makeBlock('social', {})
+  ];
+}
+const NEWSLETTER_TEMPLATES = { announce: starterBlocks, digest: digestBlocks, support: reminderSupportBlocks };
+// state.blocks already comes pre-filled with a real issue's content (see
+// the `state` default above) — this used to unconditionally overwrite it
+// with the generic starterBlocks() placeholder text on every load, which
+// is exactly why the real default content wasn't showing up. The
+// "Modèles" menu (NEWSLETTER_TEMPLATES) is still how someone replaces the
+// blocks with a fresh starter/digest/support template on purpose.
+
+const BLOCK_TYPES = [
+  { type:'heading', label:'Titre', icon:'A', cat:'Contenu' },
+  { type:'text', label:'Texte', icon:'¶', cat:'Contenu' },
+  { type:'quote', label:'Citation', icon:'❝', cat:'Contenu' },
+  { type:'divider', label:'Séparateur', icon:'—', cat:'Contenu' },
+  { type:'spacer', label:'Espacement', icon:'↕', cat:'Contenu' },
+  { type:'image', label:'Image', icon:'▧', cat:'Médias & liens' },
+  { type:'button', label:'Bouton / lien', icon:'⇒', cat:'Médias & liens' },
+  { type:'article', label:'Article (carte)', icon:'▤', cat:'Médias & liens' },
+  { type:'columns2', label:'Deux colonnes', icon:'▥', cat:'Médias & liens' },
+  { type:'video', label:'Vidéo / podcast', icon:'▶', cat:'Médias & liens' },
+  { type:'game', label:'Jeu / Sudoku', icon:'🧩', cat:'Médias & liens' },
+  { type:'social', label:'Réseaux sociaux', icon:'◎', cat:'Intégrations' },
+  { type:'support', label:'Soutien / don', icon:'♥', cat:'Intégrations' }
+];
+const ALIGN_OPTS = [['left','Gauche'],['center','Centré'],['right','Droite'],['justify','Justifié']];
+const SOCIAL_NETWORKS = ['Email','Bluesky','LinkedIn','Instagram','Facebook','X','RSS / Podcast','Site web'];
+
+/* ============================= HELPERS ============================= */
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function getNested(obj, path){ return path.split('.').reduce((o,p)=> (o==null? o : o[p]), obj); }
+function setNested(obj, path, value){
+  const parts = path.split('.');
+  let cur = obj;
+  for(let i=0;i<parts.length-1;i++) cur = cur[parts[i]];
+  cur[parts[parts.length-1]] = value;
+}
+function input(field, value, placeholder){
+  return '<input type="text" data-field="'+field+'" value="'+esc(value)+'" placeholder="'+esc(placeholder||'')+'">';
+}
+function ta(field, value, placeholder, rows){
+  return '<textarea data-field="'+field+'" rows="'+(rows||3)+'" placeholder="'+esc(placeholder||'')+'">'+esc(value)+'</textarea>';
+}
+function num(field, value){
+  return '<input type="number" data-field="'+field+'" value="'+esc(value)+'">';
+}
+function sel(field, value, opts){
+  return '<select data-field="'+field+'">'+opts.map(function(o){
+    return '<option value="'+esc(o[0])+'"'+(o[0]===value?' selected':'')+'>'+esc(o[1])+'</option>';
+  }).join('')+'</select>';
+}
+function fr(label, html){ return '<label class="field-row"><span>'+esc(label)+'</span>'+html+'</label>'; }
+function frpair(a,b){ return '<div class="field-pair">'+a+b+'</div>'; }
+
+/* ============================= FIELD FORMS PER BLOCK ============================= */
+function fieldsFor(block){
+  const d = block.data;
+  switch(block.type){
+    case 'heading':
+      return fr('Texte', input('text', d.text)) +
+        frpair(
+          fr('Niveau', sel('level', d.level, [['h1','Titre principal'],['h2','Sous-titre']])),
+          fr('Alignement', sel('align', d.align, ALIGN_OPTS))
+        );
+    case 'text':
+      return '<div class="rt-toolbar">' +
+          '<button type="button" data-rt="bold" title="Gras"><b>B</b></button>' +
+          '<button type="button" data-rt="italic" class="rt-i" title="Italique">I</button>' +
+          '<button type="button" data-rt="link" title="Lien">🔗</button>' +
+        '</div>' +
+        fr('Texte', ta('text', d.text, '', 4)) +
+        '<div class="rt-hint">Astuce : **gras**, *italique*, [texte](lien) fonctionnent aussi en tapant directement.</div>' +
+        fr('Alignement', sel('align', d.align, ALIGN_OPTS));
+    case 'quote':
+      return fr('Citation', ta('text', d.text, '', 3)) +
+        fr('Auteur / source (optionnel)', input('author', d.author)) +
+        fr('Alignement', sel('align', d.align, ALIGN_OPTS));
+    case 'image':
+      return fr('URL de l’image', input('src', d.src, 'https://…')) +
+        fr('Texte alternatif', input('alt', d.alt, 'Décrit l’image')) +
+        fr('Lien au clic (optionnel)', input('link', d.link, 'https://…')) +
+        fr('Légende (optionnel)', input('caption', d.caption)) +
+        fr('Largeur', sel('width', d.width, [['full','Pleine largeur'],['medium','Largeur moyenne (60%)']]));
+    case 'button':
+      return fr('Texte du bouton', input('text', d.text)) +
+        fr('Lien', input('url', d.url, 'https://…')) +
+        frpair(
+          fr('Alignement', sel('align', d.align, ALIGN_OPTS)),
+          fr('Style', sel('style', d.style, [['filled','Plein'],['outline','Contour']]))
+        );
+    case 'article': {
+      const artLinks = d.links.map(function(l, i){
+        return '<div class="social-row-line" style="grid-template-columns:1fr 1fr 24px;">' +
+          input('links.'+i+'.text', l.text, 'Texte du lien') +
+          input('links.'+i+'.url', l.url, 'https://…') +
+          '<button data-action="removearticlelink" data-id="'+block.id+'" data-index="'+i+'" class="bb-danger" title="Retirer">✕</button>' +
+        '</div>';
+      }).join('');
+      return fr('Image', input('image', d.image, 'https://…')) +
+        frpair(
+          fr('Thème', input('tag', d.tag)),
+          fr('Couleur du thème', '<input type="color" data-field="tagColor" value="'+(d.tagColor||'#65466e')+'">')
+        ) +
+        fr('Titre', input('title', d.title)) +
+        fr('Résumé', ta('excerpt', d.excerpt, '', 3)) +
+        fr('Alignement du résumé', sel('align', d.align, ALIGN_OPTS)) +
+        '<div class="field-row"><span>Liens (un ou plusieurs)</span><div class="social-rows">'+artLinks+'</div>' +
+        '<button data-action="addarticlelink" data-id="'+block.id+'" class="add-link-btn">+ Ajouter un lien</button></div>';
+    }
+    case 'columns2':
+      return '<div class="col-group"><b>Colonne gauche</b>' +
+        fr('Image', input('leftImage', d.leftImage, 'https://…')) +
+        fr('Titre', input('leftTitle', d.leftTitle)) +
+        fr('Texte', ta('leftText', d.leftText, '', 2)) +
+        fr('Lien', input('leftUrl', d.leftUrl, 'https://…')) +
+        '</div><div class="col-group"><b>Colonne droite</b>' +
+        fr('Image', input('rightImage', d.rightImage, 'https://…')) +
+        fr('Titre', input('rightTitle', d.rightTitle)) +
+        fr('Texte', ta('rightText', d.rightText, '', 2)) +
+        fr('Lien', input('rightUrl', d.rightUrl, 'https://…')) +
+        '</div>' +
+        fr('Alignement du texte', sel('align', d.align, ALIGN_OPTS));
+    case 'video':
+      return fr('Image miniature', input('thumbnail', d.thumbnail, 'https://…')) +
+        fr('Lien vidéo / podcast', input('videoUrl', d.videoUrl, 'https://…')) +
+        fr('Texte du bouton', input('caption', d.caption));
+    case 'game':
+      return fr('Titre', input('title', d.title)) +
+        fr('Description', ta('description', d.description, '', 3)) +
+        frpair(fr('Lien', input('url', d.url, 'https://…')), fr('Texte du bouton', input('cta', d.cta))) +
+        fr('Alignement de la description', sel('align', d.align, ALIGN_OPTS));
+    case 'divider':
+      return fr('Style', sel('style', d.style, [['line','Ligne fine'],['dots','Points']]));
+    case 'spacer':
+      return fr('Hauteur (px)', num('height', d.height));
+    case 'social': {
+      const rows = d.links.map(function(l, i){
+        return '<div class="social-row-line">' +
+          sel('links.'+i+'.network', l.network, SOCIAL_NETWORKS.map(function(n){return [n,n];})) +
+          input('links.'+i+'.url', l.url, 'https://…') +
+          input('links.'+i+'.icon', l.icon||'', 'emoji ou URL') +
+          '<button data-action="removelink" data-id="'+block.id+'" data-index="'+i+'" class="bb-danger" title="Retirer">✕</button>' +
+        '</div>';
+      }).join('');
+      return '<div class="rt-hint" style="margin-bottom:2px;">Icône : laissez vide pour l’initiale par défaut, tapez un emoji, ou collez l’URL d’une image (ronde, carrée de préférence).</div>' +
+        fr('Fond derrière les icônes-image', '<input type="color" data-field="iconBg" value="'+(d.iconBg || state.theme.accent)+'"> <span class="rt-hint">Si vos icônes sont blanches ou claires, choisissez un fond foncé pour qu’elles restent visibles.</span>') +
+        '<div class="social-rows">'+rows+'</div><button data-action="addlink" data-id="'+block.id+'" class="add-link-btn">+ Ajouter un réseau</button>';
+    }
+    case 'support':
+      return fr('Titre', input('title', d.title)) +
+        fr('Texte', ta('text', d.text, '', 3)) +
+        frpair(fr('Texte du bouton', input('cta', d.cta)), fr('Lien du bouton', input('ctaUrl', d.ctaUrl, 'https://…'))) +
+        fr('Alignement du texte', sel('align', d.align, ALIGN_OPTS));
+    default: {
+      const def = customBlockDefs.find(function(cd){ return cd.type === block.type; });
+      if(!def) return '<div class="rt-hint">Type de bloc inconnu.</div>';
+      return def.fields.map(function(f){
+        if(f.kind==='textarea') return fr(f.label, ta(f.key, d[f.key], '', 3));
+        return fr(f.label, input(f.key, d[f.key], f.kind==='url' ? 'https://…' : ''));
+      }).join('');
+    }
+  }
+}
+
+/* ============================= CANVAS RENDER ============================= */
+function renderBlockCard(block){
+  const meta = allBlockTypeDefs().find(function(t){ return t.type === block.type; }) || { icon:'?', label:block.type };
+  return '<div class="builder-block" data-id="'+block.id+'" data-type="'+block.type+'">' +
+    '<div class="bb-head"><span class="bb-tag"><span class="bb-drag" draggable="true" title="Glisser pour réordonner">⠿⠿</span>'+meta.icon+' '+esc(meta.label)+'</span>' +
+    '<div class="bb-tools">' +
+      '<button data-action="up" data-id="'+block.id+'" title="Monter">↑</button>' +
+      '<button data-action="down" data-id="'+block.id+'" title="Descendre">↓</button>' +
+      '<button data-action="dup" data-id="'+block.id+'" title="Dupliquer">⎘</button>' +
+      '<button data-action="del" data-id="'+block.id+'" title="Supprimer" class="bb-danger">✕</button>' +
+    '</div></div>' +
+    '<div class="bb-body">'+fieldsFor(block)+'</div>' +
+  '</div>';
+}
+function renderCanvas(){
+  const el = document.getElementById('canvas');
+  document.getElementById('blockCount').textContent = state.blocks.length + (state.blocks.length>1 ? ' blocs' : ' bloc');
+  if(state.blocks.length===0){
+    el.innerHTML = '<div class="canvas-empty">Votre newsletter est vide.<br><b>Ajoutez un bloc</b> depuis le panneau de gauche pour commencer.</div>';
+    return;
+  }
+  el.innerHTML = state.blocks.map(renderBlockCard).join('');
+}
+function refreshBlockCard(id){
+  const card = document.querySelector('.builder-block[data-id="'+id+'"]');
+  const block = state.blocks.find(function(b){ return b.id===id; });
+  if(card && block) card.outerHTML = renderBlockCard(block);
+}
+
+/* ============================= SIDEBAR ============================= */
+function allBlockTypeDefs(){
+  return BLOCK_TYPES.concat(customBlockDefs.map(function(d){ return { type:d.type, label:d.label, icon:d.icon, cat:d.cat, custom:true }; }));
+}
+function renderSidebar(){
+  const cats = ['Contenu','Médias & liens','Intégrations'];
+  const all = allBlockTypeDefs();
+  let html = '';
+  cats.forEach(function(cat){
+    const items = all.filter(function(t){ return t.cat===cat; });
+    if(items.length===0) return;
+    html += '<h4>'+cat+'</h4>';
+    items.forEach(function(t){
+      html += '<button class="block-btn" draggable="true" data-add="'+t.type+'"><span class="ic">'+t.icon+'</span>'+esc(t.label) +
+        (t.custom ? '<span class="cb-del" data-action="deletecustomtype" data-type="'+t.type+'" title="Supprimer ce type de bloc">✕</span>' : '') +
+        '</button>';
+    });
+  });
+  html += '<div class="hint">Les images doivent être hébergées en ligne (URL publique) : les e-mails ne peuvent pas embarquer de fichiers, comme sur le web.<br>Glissez un bloc directement dans le canevas pour le placer où vous voulez.</div>';
+  html += '<div class="custom-block-panel">' +
+    '<button class="btn btn-ghost btn-block" id="newCustomBlockBtn" type="button">➕ Nouveau type de bloc</button>' +
+    '<button class="btn btn-ghost btn-block" id="saveToolBtn" type="button">⇩ Enregistrer l’outil (avec mes blocs)</button>' +
+    '<div class="hint" style="margin-top:0;border-top:none;padding-top:0;">Le fichier téléchargé est une copie complète de cet outil, avec vos types de blocs déjà intégrés — à rouvrir plus tard.</div>' +
+  '</div>';
+  document.getElementById('sidebarBlocks').innerHTML = html;
+  document.getElementById('newCustomBlockBtn').addEventListener('click', openCustomBlockModal);
+  document.getElementById('saveToolBtn').addEventListener('click', saveToolWithCustomBlocks);
+}
+
+/* ============================= SETTINGS PANEL ============================= */
+function renderSettings(){
+  const s = state;
+  document.getElementById('settingsBody').innerHTML =
+    '<div class="settings-section"><h4>E-mail</h4>' +
+      fr('Objet', input('__meta_subject', s.meta.subject)) +
+      fr('Pré-en-tête (aperçu dans la boîte mail)', input('__meta_preheader', s.meta.preheader)) +
+      fr('URL de la version en ligne (optionnel)', input('__meta_viewurl', s.meta.viewInBrowserUrl, 'https://… (lien « ouvrir dans le navigateur »)')) +
+    '</div>' +
+    '<div class="settings-section"><h4>En-tête</h4>' +
+      fr('URL du logo Sérotine', input('__h_logo', s.header.logoUrl, 'https://… (à téléverser plus tard)')) +
+      fr('Largeur du logo (px)', '<input type="number" data-path="header.logoWidth" min="60" max="640" step="10" value="'+s.header.logoWidth+'">') +
+      fr('Nom du magazine (texte alternatif de l’image)', input('__h_title', s.header.title)) +
+      frpair(
+        fr('Fond', '<input type="color" data-path="header.bg" value="'+s.header.bg+'">'),
+        fr('Accent texte', '<input type="color" data-path="header.accent" value="'+s.header.accent+'">')
+      ) +
+    '</div>' +
+    '<div class="settings-section"><h4>Thème</h4>' +
+      frpair(
+        fr('Fond (papier)', '<input type="color" data-path="theme.bg" value="'+s.theme.bg+'">'),
+        fr('Texte', '<input type="color" data-path="theme.text" value="'+s.theme.text+'">')
+      ) +
+      frpair(
+        fr('Accent principal', '<input type="color" data-path="theme.accent" value="'+s.theme.accent+'">'),
+        fr('Accent secondaire', '<input type="color" data-path="theme.accent2" value="'+s.theme.accent2+'">')
+      ) +
+      '<label class="field-row" style="flex-direction:row;align-items:center;gap:8px;margin-top:10px;">' +
+        '<input type="checkbox" data-path="theme.preventDarkMode" style="width:auto;"'+(s.theme.preventDarkMode!==false?' checked':'')+'>' +
+        '<span>🌙 Empêcher le mode sombre automatique des clients mail (recommandé)</span>' +
+      '</label>' +
+    '</div>' +
+    '<div class="settings-section"><h4>Pied de page</h4>' +
+      fr('Texte associatif', '<textarea data-path="footer.text" rows="3">'+esc(s.footer.text)+'</textarea>') +
+      fr('Adresse', input('__f_address', s.footer.address)) +
+      fr('E-mail de contact', input('__f_email', s.footer.email)) +
+      fr('Lien de désabonnement', input('__f_unsub', s.footer.unsubscribeUrl)) +
+    '</div>';
+
+  // bind the "__" prefixed custom-path fields manually since they don't map 1:1
+  bindCustom('__meta_subject','meta.subject'); bindCustom('__meta_preheader','meta.preheader'); bindCustom('__meta_viewurl','meta.viewInBrowserUrl');
+  bindCustom('__h_logo','header.logoUrl'); bindCustom('__h_title','header.title');
+  bindCustom('__f_address','footer.address'); bindCustom('__f_email','footer.email'); bindCustom('__f_unsub','footer.unsubscribeUrl');
+}
+function bindCustom(field, path){
+  const el = document.querySelector('#settingsBody [data-field="'+field+'"]');
+  if(el) el.setAttribute('data-path', path);
+}
+
+/* ============================= EVENTS: CANVAS ============================= */
+document.getElementById('canvas').addEventListener('click', function(e){
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const id = btn.dataset.action==='addlink' || btn.dataset.action==='removelink' ? btn.dataset.id : btn.dataset.id;
+  const idx = state.blocks.findIndex(function(b){ return b.id===id; });
+  const action = btn.dataset.action;
+  if(idx===-1) return;
+  if(action==='up' && idx>0){ const t=state.blocks[idx-1]; state.blocks[idx-1]=state.blocks[idx]; state.blocks[idx]=t; renderCanvas(); }
+  else if(action==='down' && idx<state.blocks.length-1){ const t=state.blocks[idx+1]; state.blocks[idx+1]=state.blocks[idx]; state.blocks[idx]=t; renderCanvas(); }
+  else if(action==='dup'){ const copy=JSON.parse(JSON.stringify(state.blocks[idx])); copy.id=uid(); state.blocks.splice(idx+1,0,copy); renderCanvas(); }
+  else if(action==='del'){ state.blocks.splice(idx,1); renderCanvas(); }
+  else if(action==='addlink'){ state.blocks[idx].data.links.push({network:'Site web',url:''}); refreshBlockCard(id); }
+  else if(action==='removelink'){ state.blocks[idx].data.links.splice(Number(btn.dataset.index),1); refreshBlockCard(id); }
+  else if(action==='addarticlelink'){ state.blocks[idx].data.links.push({text:'Lire →',url:''}); refreshBlockCard(id); }
+  else if(action==='removearticlelink'){ state.blocks[idx].data.links.splice(Number(btn.dataset.index),1); refreshBlockCard(id); }
+  schedulePreview();
+});
+
+document.getElementById('canvas').addEventListener('click', function(e){
+  const rtBtn = e.target.closest('button[data-rt]');
+  if(!rtBtn) return;
+  const card = rtBtn.closest('.builder-block');
+  const textarea = card && card.querySelector('textarea[data-field="text"]');
+  if(!textarea) return;
+  applyRichFormat(textarea, rtBtn.dataset.rt);
+  const block = state.blocks.find(function(b){ return b.id===card.dataset.id; });
+  if(block) block.data.text = textarea.value;
+  schedulePreview();
+});
+function applyRichFormat(taEl, type){
+  const start = taEl.selectionStart, end = taEl.selectionEnd;
+  const val = taEl.value;
+  const selected = val.slice(start, end) || (type==='link' ? 'texte du lien' : 'texte');
+  let wrapped;
+  if(type==='bold') wrapped = '**'+selected+'**';
+  else if(type==='italic') wrapped = '*'+selected+'*';
+  else if(type==='link'){
+    const url = window.prompt('URL du lien :', 'https://');
+    if(!url) return;
+    wrapped = '['+selected+']('+url+')';
+  }
+  taEl.value = val.slice(0, start) + wrapped + val.slice(end);
+  taEl.focus();
+  taEl.selectionStart = start;
+  taEl.selectionEnd = start + wrapped.length;
+}
+
+/* Drag & drop reordering */
+let draggedId = null;
+document.getElementById('canvas').addEventListener('dragstart', function(e){
+  const handle = e.target.closest('.bb-drag');
+  if(!handle){ e.preventDefault(); return; }
+  const card = handle.closest('.builder-block');
+  draggedId = card.dataset.id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedId);
+  try{ e.dataTransfer.setDragImage(card, 20, 20); }catch(err){}
+  requestAnimationFrame(function(){ card.classList.add('dragging'); });
+});
+document.getElementById('canvas').addEventListener('dragend', function(){
+  const card = document.querySelector('.builder-block.dragging');
+  if(card) card.classList.remove('dragging');
+  document.querySelectorAll('.builder-block.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+  draggedId = null;
+});
+document.getElementById('canvas').addEventListener('dragover', function(e){
+  if(!draggedId && !draggedNewType) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = draggedNewType ? 'copy' : 'move';
+  const card = e.target.closest('.builder-block');
+  document.querySelectorAll('.builder-block.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+  if(card && card.dataset.id !== draggedId) card.classList.add('drag-over');
+});
+document.getElementById('canvas').addEventListener('drop', function(e){
+  if(!draggedId && !draggedNewType) return;
+  e.preventDefault();
+  const targetCard = e.target.closest('.builder-block');
+  document.querySelectorAll('.builder-block.drag-over').forEach(function(el){ el.classList.remove('drag-over'); });
+
+  let insertIdx = state.blocks.length;
+  if(targetCard){
+    const rect = targetCard.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    const idx = state.blocks.findIndex(function(b){ return b.id === targetCard.dataset.id; });
+    insertIdx = before ? idx : idx + 1;
+  }
+
+  if(draggedNewType){
+    state.blocks.splice(insertIdx, 0, makeBlock(draggedNewType));
+    draggedNewType = null;
+  } else if(draggedId){
+    if(targetCard && targetCard.dataset.id === draggedId) return;
+    const fromIdx = state.blocks.findIndex(function(b){ return b.id === draggedId; });
+    if(fromIdx === -1) return;
+    const moved = state.blocks.splice(fromIdx, 1)[0];
+    if(insertIdx > fromIdx) insertIdx -= 1;
+    state.blocks.splice(insertIdx, 0, moved);
+  }
+  renderCanvas();
+  schedulePreview();
+});
+document.getElementById('canvas').addEventListener('input', onFieldEdit);
+document.getElementById('canvas').addEventListener('change', onFieldEdit);
+function onFieldEdit(e){
+  const el = e.target;
+  if(!el.dataset || !el.dataset.field) return;
+  const card = el.closest('.builder-block');
+  if(!card) return;
+  const block = state.blocks.find(function(b){ return b.id===card.dataset.id; });
+  if(!block) return;
+  let value = el.value;
+  if(el.type==='number') value = Number(value);
+  setNested(block.data, el.dataset.field, value);
+  schedulePreview();
+}
+
+/* ============================= EVENTS: SIDEBAR / SETTINGS ============================= */
+document.getElementById('sidebarBlocks').addEventListener('click', function(e){
+  const delBtn = e.target.closest('[data-action="deletecustomtype"]');
+  if(delBtn){
+    e.stopPropagation();
+    const type = delBtn.dataset.type;
+    const hasUsage = state.blocks.some(function(b){ return b.type===type; });
+    const msg = hasUsage
+      ? 'Supprimer ce type de bloc ? Les blocs déjà placés dans la newsletter avec ce type seront aussi retirés.'
+      : 'Supprimer ce type de bloc ?';
+    if(!window.confirm(msg)) return;
+    customBlockDefs = customBlockDefs.filter(function(d){ return d.type!==type; });
+    if(hasUsage){ state.blocks = state.blocks.filter(function(b){ return b.type!==type; }); renderCanvas(); schedulePreview(); }
+    renderSidebar();
+    return;
+  }
+  const btn = e.target.closest('[data-add]');
+  if(!btn) return;
+  state.blocks.push(makeBlock(btn.dataset.add));
+  renderCanvas();
+  schedulePreview();
+  const wrap = document.querySelector('.canvas-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+});
+let draggedNewType = null;
+document.getElementById('sidebarBlocks').addEventListener('dragstart', function(e){
+  const btn = e.target.closest('.block-btn');
+  if(!btn){ e.preventDefault(); return; }
+  draggedNewType = btn.dataset.add;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', draggedNewType);
+  btn.classList.add('dragging-source');
+});
+document.getElementById('sidebarBlocks').addEventListener('dragend', function(e){
+  const btn = e.target.closest('.block-btn');
+  if(btn) btn.classList.remove('dragging-source');
+  draggedNewType = null;
+});
+document.getElementById('settingsBody').addEventListener('input', onSettingsEdit);
+document.getElementById('settingsBody').addEventListener('change', onSettingsEdit);
+function onSettingsEdit(e){
+  const el = e.target;
+  if(!el.dataset || !el.dataset.path) return;
+  let value = el.type==='checkbox' ? el.checked : (el.type==='number' ? Number(el.value) : el.value);
+  setNested(state, el.dataset.path, value);
+  schedulePreview();
+}
+document.getElementById('quickSubject').addEventListener('input', function(e){ state.meta.subject = e.target.value; syncSettingsField('__meta_subject', e.target.value); schedulePreview(); });
+document.getElementById('quickPreheader').addEventListener('input', function(e){ state.meta.preheader = e.target.value; syncSettingsField('__meta_preheader', e.target.value); schedulePreview(); });
+function syncSettingsField(field, value){
+  const el = document.querySelector('#settingsBody [data-field="'+field+'"]');
+  if(el) el.value = value;
+}
+
+/* Tabs (preview / settings) */
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+/* Modal tabs */
+document.querySelectorAll('.modal-tab').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.modal-tab').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.modal-pane').forEach(function(c){ c.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('mpane-'+btn.dataset.mtab).classList.add('active');
+  });
+});
+
+/* Preview width toggle */
+document.querySelectorAll('.pw-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.pw-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('previewFrame').style.width = btn.dataset.w==='100%' ? '100%' : (btn.dataset.w+'px');
+  });
+});
+
+/* Mobile toggles */
+document.getElementById('toggleBlocks').addEventListener('click', function(){
+  // .open drives the <860px slide-in drawer; .collapsed drives the
+  // always-available desktop close/collapse (closed by default) — both
+  // toggle together off the same button so it reads as one "show/hide
+  // blocks panel" action regardless of viewport width.
+  document.getElementById('sidebarBlocks').classList.toggle('open');
+  document.getElementById('sidebarBlocks').classList.toggle('collapsed');
+  document.getElementById('sidePanel').classList.remove('open');
+});
+document.getElementById('togglePanel').addEventListener('click', function(){
+  document.getElementById('sidePanel').classList.toggle('open');
+  document.getElementById('sidebarBlocks').classList.remove('open');
+});
+
+/* Reset */
+document.getElementById('resetBtn').addEventListener('click', function(){
+  if(confirm('Vider entièrement la newsletter en cours ?')){
+    state.blocks = [];
+    renderCanvas();
+    schedulePreview();
+  }
+});
+
+/* ============================= EMAIL HTML GENERATION ============================= */
+function socialInitial(network){
+  const map = {'Email':'✉','Bluesky':'B','LinkedIn':'in','Instagram':'IG','Facebook':'f','X':'X','RSS / Podcast':'RSS','Site web':'🔗'};
+  return map[network] || network.slice(0,2).toUpperCase();
+}
+function mdToHtml(text, theme){
+  let s = esc(text);
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, label, url){
+    return '<a href="'+url+'" style="color:'+theme.accent+';text-decoration:underline;">'+label+'</a>';
+  });
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+function blockHtml(block, theme){
+  const d = block.data;
+  switch(block.type){
+    case 'heading': {
+      const size = d.level==='h1' ? '28px' : '21px';
+      return '<tr><td style="padding:20px 26px 4px 26px;text-align:'+d.align+';">' +
+        '<'+d.level+' style="margin:0;font-family:Georgia,\'Times New Roman\',serif;font-weight:700;font-size:'+size+';line-height:1.3;color:'+theme.text+';">'+esc(d.text)+'</'+d.level+'>' +
+      '</td></tr>';
+    }
+    case 'text':
+      return '<tr><td style="padding:6px 26px;text-align:'+d.align+';">' +
+        '<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15.5px;line-height:1.65;color:'+theme.text+';">'+mdToHtml(d.text, theme)+'</p>' +
+      '</td></tr>';
+    case 'quote':
+      return '<tr><td style="padding:12px 26px;text-align:'+(d.align||'left')+';">' +
+        '<table role="presentation" width="100%" style="border-left:4px solid '+theme.accent+';">' +
+        '<tr><td style="padding:2px 0 2px 20px;">' +
+        '<p style="margin:0 0 8px;text-align:'+(d.align||'left')+';font-family:Georgia,\'Times New Roman\',serif;font-style:italic;font-size:17px;line-height:1.5;color:'+theme.text+';">“'+esc(d.text)+'”</p>' +
+        (d.author ? '<p style="margin:0;text-align:'+(d.align||'left')+';font-family:Arial,sans-serif;font-size:12.5px;color:'+theme.text+';opacity:.65;">— '+esc(d.author)+'</p>' : '') +
+        '</td></tr></table></td></tr>';
+    case 'image': {
+      const w = d.width==='full' ? '100%' : '60%';
+      let img = '<img src="'+esc(d.src)+'" alt="'+esc(d.alt)+'" width="560" style="display:block;width:'+w+';max-width:100%;height:auto;border-radius:8px;">';
+      if(d.link) img = '<a href="'+esc(d.link)+'" target="_blank">'+img+'</a>';
+      const cap = d.caption ? '<p style="margin:8px 0 0;font-family:Arial,sans-serif;font-size:12.5px;color:'+theme.text+';opacity:.65;">'+esc(d.caption)+'</p>' : '';
+      return '<tr><td style="padding:10px 26px;text-align:center;">'+img+cap+'</td></tr>';
+    }
+    case 'button':
+      return '<tr><td style="padding:10px 26px;text-align:'+d.align+';">' +
+        '<a href="'+esc(d.url)+'" target="_blank" style="background:'+(d.style==='filled'?theme.accent:'transparent')+';' +
+        'border:2px solid '+theme.accent+';color:'+(d.style==='filled'?'#ffffff':theme.accent)+';display:inline-block;' +
+        'padding:12px 26px;border-radius:999px;font-family:Arial,Helvetica,sans-serif;font-size:14.5px;font-weight:bold;text-decoration:none;">'+esc(d.text)+'</a>' +
+      '</td></tr>';
+    case 'article': {
+      const artLinksHtml = (d.links||[]).filter(function(l){ return l.url; }).map(function(l){
+        return '<p style="margin:0 0 6px;"><a href="'+esc(l.url)+'" target="_blank" style="font-family:Arial,sans-serif;font-size:13.5px;font-weight:bold;color:'+theme.accent+';text-decoration:none;">'+esc(l.text)+'</a></p>';
+      }).join('');
+      return '<tr><td style="padding:8px 26px;">' +
+        '<table role="presentation" width="100%" style="border:1px solid '+theme.line+';border-radius:10px;overflow:hidden;">' +
+        (d.image ? '<tr><td><img src="'+esc(d.image)+'" alt="'+esc(d.title)+'" width="560" style="display:block;width:100%;height:auto;"></td></tr>' : '') +
+        '<tr><td style="padding:16px 18px;">' +
+        '<span style="display:inline-block;background:'+(d.tagColor||theme.accent2)+';color:#ffffff;font-family:Arial,sans-serif;font-size:11px;font-weight:bold;padding:3px 10px;border-radius:999px;letter-spacing:.03em;">'+esc(d.tag)+'</span>' +
+        '<h3 style="margin:10px 0 6px;font-family:Georgia,serif;font-size:18px;color:'+theme.text+';">'+esc(d.title)+'</h3>' +
+        '<p style="margin:0 0 10px;text-align:'+(d.align||'left')+';font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:'+theme.text+';opacity:.85;">'+esc(d.excerpt)+'</p>' +
+        '<div style="margin:0;">'+artLinksHtml+'</div>' +
+        '</td></tr></table></td></tr>';
+    }
+    case 'columns2': {
+      function col(img,title,text,url,align){
+        const body = '<img src="'+esc(img)+'" alt="" width="260" style="display:block;width:100%;height:auto;border-radius:8px;">' +
+          '<h4 style="margin:10px 0 4px;font-family:Georgia,serif;font-size:15px;color:'+theme.text+';">'+esc(title)+'</h4>' +
+          '<p style="margin:0;text-align:'+align+';font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:'+theme.text+';opacity:.85;">'+esc(text)+'</p>';
+        return url ? '<a href="'+esc(url)+'" target="_blank" style="text-decoration:none;">'+body+'</a>' : body;
+      }
+      const cAlign = d.align || 'left';
+      return '<tr><td style="padding:8px 26px;">' +
+        '<table role="presentation" width="100%"><tr>' +
+        '<td class="col-2" width="48%" valign="top" style="padding-right:12px;">'+col(d.leftImage,d.leftTitle,d.leftText,d.leftUrl,cAlign)+'</td>' +
+        '<td class="col-2" width="48%" valign="top" style="padding-left:12px;">'+col(d.rightImage,d.rightTitle,d.rightText,d.rightUrl,cAlign)+'</td>' +
+        '</tr></table></td></tr>';
+    }
+    case 'video':
+      return '<tr><td style="padding:8px 26px;text-align:center;">' +
+        '<a href="'+esc(d.videoUrl)+'" target="_blank">' +
+        '<img src="'+esc(d.thumbnail)+'" alt="" width="560" style="display:block;width:100%;height:auto;border-radius:8px;">' +
+        '</a>' +
+        '<a href="'+esc(d.videoUrl)+'" target="_blank" style="display:inline-block;margin-top:12px;background:'+theme.text+';color:#ffffff;' +
+        'font-family:Arial,sans-serif;font-size:13.5px;font-weight:bold;padding:9px 20px;border-radius:999px;text-decoration:none;">▶ '+esc(d.caption)+'</a>' +
+      '</td></tr>';
+    case 'game':
+      return '<tr><td style="padding:8px 26px;">' +
+        '<table role="presentation" width="100%" style="background:'+theme.bg+';border:1px solid '+theme.line+';border-radius:10px;">' +
+        '<tr><td style="padding:16px 18px;text-align:center;">' +
+        '<div style="font-size:26px;line-height:1;margin-bottom:8px;">🧩</div>' +
+        '<h3 style="margin:0 0 6px;font-family:Georgia,serif;font-size:17px;color:'+theme.text+';">'+esc(d.title)+'</h3>' +
+        '<p style="margin:0 0 14px;text-align:'+(d.align||'center')+';font-family:Arial,sans-serif;font-size:13.5px;line-height:1.55;color:'+theme.text+';opacity:.85;">'+esc(d.description)+'</p>' +
+        '<a href="'+esc(d.url)+'" target="_blank" style="background:'+theme.accent+';color:#ffffff;display:inline-block;padding:11px 24px;' +
+        'border-radius:999px;font-family:Arial,sans-serif;font-size:13.5px;font-weight:bold;text-decoration:none;">'+esc(d.cta)+'</a>' +
+        '</td></tr></table></td></tr>';
+    case 'divider':
+      if(d.style==='dots') return '<tr><td style="padding:12px 26px;text-align:center;font-family:Arial,sans-serif;color:'+theme.line+';letter-spacing:6px;">• • •</td></tr>';
+      return '<tr><td style="padding:4px 26px;"><hr style="border:none;border-top:1px solid '+theme.line+';margin:10px 0;"></td></tr>';
+    case 'spacer':
+      return '<tr><td style="height:'+d.height+'px;line-height:'+d.height+'px;font-size:1px;">&nbsp;</td></tr>';
+    case 'social': {
+      const iconBg = d.iconBg || theme.accent;
+      const icons = d.links.map(function(l){
+        const icoRaw = (l.icon||'').trim();
+        const isImg = /^https?:\/\//i.test(icoRaw);
+        if(isImg){
+          return '<a href="'+esc(l.url)+'" target="_blank" style="display:inline-block;width:34px;height:34px;line-height:34px;' +
+            'border-radius:50%;background:'+iconBg+';text-align:center;text-decoration:none;margin:0 5px;overflow:hidden;">' +
+            '<img src="'+esc(icoRaw)+'" width="18" height="18" alt="" style="display:inline-block;width:18px;height:18px;vertical-align:middle;object-fit:contain;">' +
+            '</a>';
+        }
+        const content = icoRaw ? esc(icoRaw) : esc(socialInitial(l.network));
+        return '<a href="'+esc(l.url)+'" target="_blank" style="display:inline-block;width:34px;height:34px;line-height:34px;' +
+          'border-radius:50%;background:'+theme.accent+';color:#ffffff;text-align:center;font-family:Arial,sans-serif;font-size:14px;' +
+          'font-weight:bold;text-decoration:none;margin:0 5px;overflow:hidden;">'+content+'</a>';
+      }).join('');
+      return '<tr><td style="padding:14px 26px;text-align:center;">'+icons+'</td></tr>';
+    }
+    case 'support':
+      return '<tr><td style="padding:10px 26px;">' +
+        '<table role="presentation" width="100%" style="background:'+theme.bg+';border:1px dashed '+theme.accent+';border-radius:10px;">' +
+        '<tr><td style="padding:16px 18px;text-align:center;">' +
+        '<h3 style="margin:0 0 6px;font-family:Georgia,serif;font-size:17px;color:'+theme.text+';">'+esc(d.title)+'</h3>' +
+        '<p style="margin:0 0 14px;text-align:'+(d.align||'center')+';font-family:Arial,sans-serif;font-size:13.5px;line-height:1.55;color:'+theme.text+';opacity:.85;">'+esc(d.text)+'</p>' +
+        '<a href="'+esc(d.ctaUrl)+'" target="_blank" style="background:'+theme.accent2+';color:#ffffff;display:inline-block;padding:11px 24px;' +
+        'border-radius:999px;font-family:Arial,sans-serif;font-size:13.5px;font-weight:bold;text-decoration:none;">'+esc(d.cta)+'</a>' +
+        '</td></tr></table></td></tr>';
+    default: {
+      const def = customBlockDefs.find(function(cd){ return cd.type === block.type; });
+      if(!def) return '';
+      let out = def.template;
+      def.fields.forEach(function(f){
+        out = out.split('{{'+f.key+'}}').join(esc(d[f.key]));
+      });
+      out = out.split('{{theme.accent}}').join(theme.accent)
+        .split('{{theme.accent2}}').join(theme.accent2)
+        .split('{{theme.text}}').join(theme.text)
+        .split('{{theme.bg}}').join(theme.bg);
+      return out;
+    }
+  }
+}
+function generateFullHtml(s){
+  const theme = s.theme, header = s.header, footer = s.footer;
+  const blocksHtml = s.blocks.map(function(b){ return blockHtml(b, theme); }).join('');
+  const logoW = header.logoWidth || 280;
+  const headerContent = header.logoUrl
+    ? '<img src="'+esc(header.logoUrl)+'" alt="'+esc(header.title)+'" style="max-width:'+logoW+'px;width:100%;height:auto;display:block;margin:0 auto;">'
+    : '<div style="display:inline-block;border:1px dashed '+header.accent+';border-radius:8px;padding:14px 22px;color:'+header.accent+';font-family:Arial,sans-serif;font-size:12px;">Logo '+esc(header.title||'Sérotine')+' à ajouter<br>(URL du logo dans Réglages → En-tête)</div>';
+  const viewInBrowserBar = s.meta.viewInBrowserUrl
+    ? '<tr><td align="center" style="padding:12px 12px 0;">' +
+      '<div style="font-family:Arial,sans-serif;font-size:11.5px;color:#8a8676;">' +
+      'Vous ne visualisez pas correctement cet e-mail ? ' +
+      '<a href="'+esc(s.meta.viewInBrowserUrl)+'" target="_blank" style="color:'+theme.accent+';text-decoration:underline;">Ouvrez-le dans votre navigateur</a>' +
+      '</div></td></tr>'
+    : '<tr><td align="center" style="padding:12px 12px 0;">' +
+      '<div style="font-family:Arial,sans-serif;font-size:11px;color:#b7b2a0;font-style:italic;">' +
+      'Lien « voir dans le navigateur » à ajouter (Réglages → E-mail)' +
+      '</div></td></tr>';
+  const darkModeCss = s.theme.preventDarkMode!==false ? [
+'  :root{color-scheme:light only;}',
+'  [data-ogsc] body,[data-ogsc] .email-container,[data-ogsc] table,[data-ogsc] td{background:'+theme.bg+' !important;}',
+'  [data-ogsc] p,[data-ogsc] h1,[data-ogsc] h2,[data-ogsc] h3,[data-ogsc] h4,[data-ogsc] span,[data-ogsc] div{color:'+theme.text+' !important;}',
+'  [data-ogsb]{background-color:'+theme.bg+' !important;}'
+  ].join('\n') : '';
+  const darkModeMeta = s.theme.preventDarkMode!==false ? [
+'<meta name="color-scheme" content="light">',
+'<meta name="supported-color-schemes" content="light">'
+  ].join('\n') : '';
+  return [
+'<!DOCTYPE html>',
+'<html lang="fr">',
+'<head>',
+'<meta charset="UTF-8">',
+'<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+darkModeMeta,
+'<title>'+esc(s.meta.subject)+'</title>',
+'<style>',
+'  body{margin:0;padding:0;background:'+theme.bg+';}',
+'  img{border:0;outline:none;text-decoration:none;}',
+'  a{color:inherit;}',
+'  @media (max-width:600px){',
+'    .email-container{width:100% !important;}',
+'    .col-2{display:block !important;width:100% !important;padding:0 0 16px 0 !important;}',
+'  }',
+darkModeCss,
+'</style>',
+'</head>',
+'<body style="margin:0;padding:0;background:'+theme.bg+';">',
+'<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:'+theme.bg+';">'+esc(s.meta.preheader)+'&nbsp;&#8199;&#8199;&#8199;&#8199;&#8199;&#8199;&#8199;&#8199;&#8199;&#8199;</div>',
+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:'+theme.bg+';">',
+viewInBrowserBar,
+'<tr><td align="center" style="padding:14px 8px;">',
+'<table role="presentation" width="680" cellpadding="0" cellspacing="0" class="email-container" style="width:680px;max-width:100%;background:'+theme.bg+';">',
+'<tr><td style="background:'+header.bg+';padding:22px 26px;text-align:center;">',
+headerContent,
+'</td></tr>',
+blocksHtml,
+'<tr><td style="background:'+footer.bg+';padding:18px 26px;text-align:center;">',
+'<p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:12px;line-height:1.6;color:#ffffff;opacity:.75;">'+esc(footer.text)+'</p>',
+'<p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:11.5px;color:#ffffff;opacity:.6;">'+esc(footer.address)+' · <a href="mailto:'+esc(footer.email)+'" style="color:#ffffff;">'+esc(footer.email)+'</a></p>',
+'<p style="margin:0;font-family:Arial,sans-serif;font-size:11.5px;"><a href="'+esc(footer.unsubscribeUrl)+'" style="color:#ffffff;opacity:.6;">Se désabonner de la newsletter</a></p>',
+'</td></tr>',
+'</table>',
+'</td></tr>',
+'</table>',
+'</body>',
+'</html>'
+  ].join('\n');
+}
+
+/* ============================= PREVIEW / EXPORT ============================= */
+let previewTimer = null;
+let darkSimActive = false;
+function schedulePreview(){
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 300);
+}
+function injectDarkSim(html){
+  const style = '<style id="darksim">' +
+    'body,.email-container,table,td{background:#15161f !important;}' +
+    'p,h1,h2,h3,h4,span,div,a,li{color:#EDEBFB !important;}' +
+    'hr{border-color:#3a3c55 !important;}' +
+    '</style></head>';
+  return html.replace('</head>', style);
+}
+function updatePreview(){
+  let html = generateFullHtml(state);
+  if(darkSimActive) html = injectDarkSim(html);
+  const frame = document.getElementById('previewFrame');
+  if(frame) frame.srcdoc = html;
+}
+document.getElementById('darkSimBtn').addEventListener('click', function(){
+  darkSimActive = !darkSimActive;
+  this.classList.toggle('active', darkSimActive);
+  updatePreview();
+});
+function slugify(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'newsletter-serotine';
+}
+function slugKey(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/(^_|_$)/g,'') || 'champ';
+}
+
+/* ============================= CUSTOM BLOCK TYPES ============================= */
+let cbFieldsDraft = [];
+function renderCbFieldsList(){
+  document.getElementById('cbFieldsList').innerHTML = cbFieldsDraft.map(function(f, i){
+    return '<div class="field-pair" style="grid-template-columns:1fr 1fr 90px 24px;display:grid;gap:6px;margin-bottom:6px;align-items:center;">' +
+      '<input type="text" value="'+esc(f.label)+'" data-cb-field="label" data-i="'+i+'" placeholder="Nom du champ">' +
+      '<span style="font-size:10.5px;color:#9b96a8;">{{'+esc(f.key)+'}}</span>' +
+      '<select data-cb-field="kind" data-i="'+i+'">' +
+        '<option value="text"'+(f.kind==='text'?' selected':'')+'>Texte court</option>' +
+        '<option value="textarea"'+(f.kind==='textarea'?' selected':'')+'>Texte long</option>' +
+        '<option value="url"'+(f.kind==='url'?' selected':'')+'>Lien URL</option>' +
+      '</select>' +
+      '<button type="button" class="bb-danger" data-cb-remove="'+i+'" title="Retirer">✕</button>' +
+    '</div>';
+  }).join('') || '<div class="rt-hint">Aucun champ pour l’instant — ajoutez-en au moins un.</div>';
+}
+document.getElementById('cbAddFieldBtn').addEventListener('click', function(){
+  const n = cbFieldsDraft.length + 1;
+  cbFieldsDraft.push({ label:'Champ '+n, key:'champ_'+n, kind:'text' });
+  renderCbFieldsList();
+});
+document.getElementById('cbFieldsList').addEventListener('input', function(e){
+  const el = e.target;
+  const i = Number(el.dataset.i);
+  if(Number.isNaN(i) || !cbFieldsDraft[i]) return;
+  if(el.dataset.cbField==='label'){
+    cbFieldsDraft[i].label = el.value;
+    cbFieldsDraft[i].key = slugKey(el.value) + '_' + i;
+  } else if(el.dataset.cbField==='kind'){
+    cbFieldsDraft[i].kind = el.value;
+  }
+});
+document.getElementById('cbFieldsList').addEventListener('click', function(e){
+  const btn = e.target.closest('[data-cb-remove]');
+  if(!btn) return;
+  cbFieldsDraft.splice(Number(btn.dataset.cbRemove), 1);
+  renderCbFieldsList();
+});
+function openCustomBlockModal(){
+  document.getElementById('cbLabel').value = '';
+  document.getElementById('cbIcon').value = '';
+  document.getElementById('cbCategory').value = 'Intégrations';
+  cbFieldsDraft = [
+    { label:'Titre', key:'titre_0', kind:'text' },
+    { label:'Texte', key:'texte_1', kind:'textarea' }
+  ];
+  renderCbFieldsList();
+  document.getElementById('cbTemplate').value =
+    '<tr><td style="padding:16px 26px;">' +
+    '<h3 style="margin:0 0 6px;font-family:Georgia,serif;font-size:17px;color:{{theme.text}};">{{titre_0}}</h3>' +
+    '<p style="margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:{{theme.text}};">{{texte_1}}</p>' +
+    '</td></tr>';
+  document.getElementById('customBlockModal').classList.add('open');
+}
+document.getElementById('cbCloseBtn').addEventListener('click', function(){
+  document.getElementById('customBlockModal').classList.remove('open');
+});
+document.getElementById('cbSaveBtn').addEventListener('click', function(){
+  const label = document.getElementById('cbLabel').value.trim();
+  const icon = document.getElementById('cbIcon').value.trim() || '★';
+  const cat = document.getElementById('cbCategory').value;
+  const template = document.getElementById('cbTemplate').value.trim();
+  if(!label){ window.alert('Donnez un nom à ce bloc.'); return; }
+  if(cbFieldsDraft.length===0){ window.alert('Ajoutez au moins un champ éditable.'); return; }
+  if(!template){ window.alert('Le gabarit HTML ne peut pas être vide.'); return; }
+  customBlockDefs.push({
+    type: 'custom_' + uid(),
+    label: label,
+    icon: icon,
+    cat: cat,
+    fields: cbFieldsDraft.map(function(f){ return { label:f.label, key:f.key, kind:f.kind }; }),
+    template: template
+  });
+  document.getElementById('customBlockModal').classList.remove('open');
+  renderSidebar();
+});
+
+/* Save the whole tool, with custom block definitions baked in, as a new .html file */
+function buildToolHtmlWithCustomBlocks(){
+  const json = JSON.stringify(customBlockDefs).replace(/<\/script/gi, '<\\/script');
+  const inject = '<script>window.__CUSTOM_BLOCKS__=' + json + ';<\/script>';
+  const base = ORIGINAL_PAGE_HTML.replace(/<body>(\s*<script>window\.__CUSTOM_BLOCKS__=[\s\S]*?<\/script>\s*)?/, '<body>' + inject);
+  return '<!DOCTYPE html>\n' + base;
+}
+function saveToolWithCustomBlocks(){
+  if(customBlockDefs.length===0){
+    window.alert('Vous n’avez encore créé aucun type de bloc personnalisé. Créez-en un d’abord avec « ➕ Nouveau type de bloc », puis enregistrez l’outil.');
+    return;
+  }
+  const html = buildToolHtmlWithCustomBlocks();
+  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'serotine-newsletter-builder-personnalise.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* Resizable preview panel */
+(function(){
+  const handle = document.getElementById('panelResizeHandle');
+  const panel = document.getElementById('sidePanel');
+  let dragging = false, startX = 0, startWidth = 0, lastPanelWidth = null;
+  handle.addEventListener('mousedown', function(e){
+    if(panel.classList.contains('expanded')) return;
+    dragging = true;
+    startX = e.clientX;
+    startWidth = panel.getBoundingClientRect().width;
+    handle.classList.add('active');
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    const delta = startX - e.clientX;
+    const newW = Math.min(760, Math.max(300, startWidth + delta));
+    lastPanelWidth = newW;
+    panel.style.width = newW + 'px';
+  });
+  window.addEventListener('mouseup', function(){
+    if(dragging){ dragging = false; handle.classList.remove('active'); document.body.style.userSelect = ''; }
+  });
+  document.getElementById('expandPreviewBtn').addEventListener('click', function(){
+    const isExpanding = !panel.classList.contains('expanded');
+    if(isExpanding) panel.style.width = '';
+    else if(lastPanelWidth) panel.style.width = lastPanelWidth + 'px';
+    panel.classList.toggle('expanded');
+    this.textContent = panel.classList.contains('expanded') ? '⤡' : '⤢';
+  });
+})();
+
+/* Compatibility checker */
+function validateNewsletter(s){
+  const warnings = [];
+  if(!s.meta.subject || !s.meta.subject.trim()) warnings.push('L’objet de l’e-mail est vide.');
+  else if(s.meta.subject.length > 70) warnings.push('L’objet fait '+s.meta.subject.length+' caractères : au-delà de ~60, il risque d’être coupé dans la boîte de réception.');
+  if(!s.meta.preheader || !s.meta.preheader.trim()) warnings.push('Le pré-en-tête est vide : la boîte de réception affichera un aperçu par défaut peu engageant.');
+  if(!s.meta.viewInBrowserUrl || !s.meta.viewInBrowserUrl.trim()) warnings.push('Aucun lien « voir dans le navigateur » : optionnel, mais recommandé si des lecteurs risquent d’avoir un rendu dégradé.');
+  if(s.blocks.length===0) warnings.push('La newsletter ne contient aucun bloc de contenu.');
+  s.blocks.forEach(function(b, i){
+    const n = i+1;
+    if(b.type==='image'){
+      if(!b.data.src) warnings.push('Bloc Image #'+n+' : aucune URL d’image renseignée.');
+      else if(!b.data.alt) warnings.push('Bloc Image #'+n+' : texte alternatif manquant (accessibilité).');
+    }
+    if(b.type==='button' && !b.data.url) warnings.push('Bloc Bouton #'+n+' : lien vide.');
+    if(b.type==='video' && (!b.data.thumbnail || !b.data.videoUrl)) warnings.push('Bloc Vidéo #'+n+' : image ou lien manquant.');
+    if(b.type==='game' && !b.data.url) warnings.push('Bloc Jeu #'+n+' : lien vide.');
+    if(b.type==='article'){
+      const hasValid = (b.data.links||[]).some(function(l){ return l.url; });
+      if(!hasValid) warnings.push('Bloc Article #'+n+' ("'+(b.data.title||'sans titre')+'") : aucun lien valide.');
+    }
+    if(b.type==='support' && !b.data.ctaUrl) warnings.push('Bloc Soutien #'+n+' : lien de don vide.');
+    if(b.type==='social'){
+      (b.data.links||[]).forEach(function(l){ if(!l.url) warnings.push('Bloc Réseaux sociaux #'+n+' : lien "'+l.network+'" vide.'); });
+    }
+  });
+  if(!s.footer.unsubscribeUrl) warnings.push('Aucun lien de désabonnement renseigné (obligatoire légalement pour une newsletter).');
+  return warnings;
+}
+function renderExportWarnings(){
+  const warnings = validateNewsletter(state);
+  const el = document.getElementById('exportWarnings');
+  el.innerHTML = warnings.length===0
+    ? '<div class="ew-ok">✅ Aucun souci détecté avant export.</div>'
+    : warnings.map(function(w){ return '<div class="ew-item">⚠️ '+esc(w)+'</div>'; }).join('');
+}
+
+document.getElementById('exportOpenBtn').addEventListener('click', function(){
+  const html = generateFullHtml(state);
+  document.getElementById('exportPreviewFrame').srcdoc = html;
+  document.getElementById('exportCode').value = html;
+  renderExportWarnings();
+  document.getElementById('exportModal').classList.add('open');
+  resetSendPane();
+  refreshBrevoStatus();
+});
+
+/* ============================= SEND (Brevo) =============================
+   Same-origin fetch, session cookie carried automatically — this static
+   tool is served by the same Express app as the rest of the hub, so
+   requireAuth/requireAdmin on the server see the real logged-in session.
+   No Brevo mailing list exists yet, so recipients are typed in by hand
+   and sent one-by-one (see server/index.js) rather than as a Brevo
+   campaign to a list. */
+function resetSendPane(){
+  document.getElementById('testSendEmail').value = '';
+  document.getElementById('testSendResult').innerHTML = '';
+  document.getElementById('sendRecipients').value = '';
+  document.getElementById('sendRecipients').disabled = true;
+  document.getElementById('sendAllBtn').disabled = true;
+  document.getElementById('sendAllResult').innerHTML = '';
+}
+function refreshBrevoStatus(){
+  fetch('/api/newsletter/brevo', { credentials:'same-origin' })
+    .then(function(r){ if(!r.ok) throw new Error('not connected'); return r.json(); })
+    .then(function(s){
+      document.getElementById('brevoConnectedBox').style.display = s.connected ? '' : 'none';
+      document.getElementById('brevoDisconnectedBox').style.display = s.connected ? 'none' : '';
+    })
+    .catch(function(){
+      document.getElementById('brevoConnectedBox').style.display = 'none';
+      document.getElementById('brevoDisconnectedBox').style.display = '';
+    });
+}
+document.getElementById('testSendBtn').addEventListener('click', function(){
+  const btn = this;
+  const to = document.getElementById('testSendEmail').value.trim();
+  const resultEl = document.getElementById('testSendResult');
+  if(!to){ resultEl.innerHTML = '<div class="ew-item">⚠️ Indiquez une adresse.</div>'; return; }
+  const html = generateFullHtml(state);
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  fetch('/api/newsletter/send-test', {
+    method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ to:to, subject: state.meta.subject, html:html })
+  }).then(function(r){ return r.json().then(function(data){ return { ok:r.ok, data:data }; }); })
+  .then(function(res){
+    btn.disabled = false; btn.textContent = 'Envoyer le test';
+    if(res.ok){
+      resultEl.innerHTML = '<div class="ew-ok">✅ Test envoyé à '+esc(to)+'. Vérifiez la réception avant d’envoyer à tous.</div>';
+      document.getElementById('sendRecipients').disabled = false;
+      document.getElementById('sendAllBtn').disabled = false;
+    } else {
+      resultEl.innerHTML = '<div class="ew-item">⚠️ '+esc(res.data.error || 'Échec de l’envoi.')+'</div>';
+    }
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Envoyer le test';
+    resultEl.innerHTML = '<div class="ew-item">⚠️ Erreur réseau.</div>';
+  });
+});
+document.getElementById('sendAllBtn').addEventListener('click', function(){
+  const btn = this;
+  const recipients = document.getElementById('sendRecipients').value
+    .split(/[\n,]/).map(function(s){ return s.trim(); }).filter(Boolean);
+  const resultEl = document.getElementById('sendAllResult');
+  if(recipients.length===0){ resultEl.innerHTML = '<div class="ew-item">⚠️ Aucun destinataire.</div>'; return; }
+  if(!window.confirm('Envoyer la newsletter à '+recipients.length+' destinataire(s) ? Cette action est irréversible.')) return;
+  const html = generateFullHtml(state);
+  btn.disabled = true; btn.textContent = 'Envoi en cours…';
+  fetch('/api/newsletter/send', {
+    method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ recipients:recipients, subject: state.meta.subject, html:html })
+  }).then(function(r){ return r.json().then(function(data){ return { ok:r.ok, data:data }; }); })
+  .then(function(res){
+    btn.disabled = false; btn.textContent = 'Envoyer à tous';
+    if(res.ok){
+      let out = '<div class="ew-ok">✅ '+res.data.sent+' envoyé(s).</div>';
+      (res.data.failed||[]).forEach(function(f){
+        out += '<div class="ew-item">⚠️ '+esc(f.to)+' : '+esc(f.error)+'</div>';
+      });
+      resultEl.innerHTML = out;
+    } else {
+      resultEl.innerHTML = '<div class="ew-item">⚠️ '+esc(res.data.error || 'Échec de l’envoi.')+'</div>';
+    }
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Envoyer à tous';
+    resultEl.innerHTML = '<div class="ew-item">⚠️ Erreur réseau.</div>';
+  });
+});
+document.getElementById('exportCloseBtn').addEventListener('click', function(){
+  document.getElementById('exportModal').classList.remove('open');
+});
+document.getElementById('copyBtn').addEventListener('click', function(){
+  const html = generateFullHtml(state);
+  const codeEl = document.getElementById('exportCode');
+  codeEl.value = html;
+  function flash(){
+    const f = document.getElementById('copiedFlash');
+    f.classList.add('show');
+    setTimeout(function(){ f.classList.remove('show'); }, 1800);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(html).then(flash).catch(function(){
+      codeEl.select(); document.execCommand('copy'); flash();
+    });
+  } else {
+    codeEl.select(); document.execCommand('copy'); flash();
+  }
+});
+document.getElementById('downloadBtn').addEventListener('click', function(){
+  const html = generateFullHtml(state);
+  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = slugify(state.meta.subject) + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* Templates dropdown */
+document.getElementById('templatesBtn').addEventListener('click', function(e){
+  e.stopPropagation();
+  document.getElementById('templatesMenu').classList.toggle('open');
+});
+document.addEventListener('click', function(){
+  document.getElementById('templatesMenu').classList.remove('open');
+});
+document.getElementById('templatesMenu').addEventListener('click', function(e){
+  const btn = e.target.closest('[data-template]');
+  if(!btn) return;
+  e.stopPropagation();
+  if(state.blocks.length > 0 && !window.confirm('Remplacer le contenu actuel par ce modèle ?')) return;
+  const builder = NEWSLETTER_TEMPLATES[btn.dataset.template];
+  if(builder){
+    state.blocks = builder();
+    renderCanvas();
+    schedulePreview();
+  }
+  document.getElementById('templatesMenu').classList.remove('open');
+});
+
+/* Save / import draft as JSON */
+document.getElementById('saveJsonBtn').addEventListener('click', function(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = slugify(state.meta.subject) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importJsonBtn').addEventListener('click', function(){
+  document.getElementById('importJsonInput').click();
+});
+document.getElementById('importJsonInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = JSON.parse(evt.target.result);
+      if(!data || !Array.isArray(data.blocks)) throw new Error('le fichier ne contient pas de newsletter valide');
+      data.meta = Object.assign({ subject:'', preheader:'', viewInBrowserUrl:'' }, data.meta);
+      data.header = Object.assign({ title:'Sérotine', logoUrl:'https://serotine.fr/media/logo_serotine_site.svg', logoWidth:280, bg:'#65466e', accent:'#65466e' }, data.header);
+      data.theme = Object.assign({ bg:'#fcf8f8', text:'#1C1B2E', accent:'#65466e', accent2:'#80ab34', line:'#E7E1CE', preventDarkMode:true }, data.theme);
+      data.footer = Object.assign({ text:'', address:'', email:'', unsubscribeUrl:'', bg:'#0E1024' }, data.footer);
+      state = data;
+      document.getElementById('quickSubject').value = state.meta.subject || '';
+      document.getElementById('quickPreheader').value = state.meta.preheader || '';
+      renderCanvas();
+      renderSettings();
+      schedulePreview();
+    }catch(err){
+      window.alert('Impossible de lire ce fichier : ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ============================= INIT ============================= */
+document.getElementById('quickSubject').value = state.meta.subject;
+document.getElementById('quickPreheader').value = state.meta.preheader;
+renderSidebar();
+renderCanvas();
+renderSettings();
+updatePreview();
+</script>
+</body>
+</html>

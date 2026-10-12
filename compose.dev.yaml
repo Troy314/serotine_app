@@ -1,0 +1,13 @@
+# Essai local sur l'ordinateur : SEULEMENT la base Postgres, exposée sur 127.0.0.1:55433.
+# L'app tourne à côté avec `npm run dev` (voir .env : DATABASE_URL). Rien à voir avec le compose.yaml du serveur.
+#   docker compose -f compose.dev.yaml up -d      # démarrer
+#   docker compose -f compose.dev.yaml down       # arrêter (garde les données) ; ajouter -v pour tout effacer
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: serotine_dev_db
+    environment: { POSTGRES_USER: serotine, POSTGRES_DB: serotine, POSTGRES_PASSWORD: dev-local-only }
+    ports: ["127.0.0.1:55433:5432"]
+    volumes: [serotine_dev_pgdata:/var/lib/postgresql/data]
+volumes:
+  serotine_dev_pgdata:

@@ -1,0 +1,40 @@
+{
+  "name": "serotine-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Private, Discord-role-gated project hub for the Sérotine webzine team.",
+  "scripts": {
+    "dev": "concurrently -n SERVER,CLIENT -c cyan,magenta \"npm:server\" \"npm:client\"",
+    "server": "nodemon --watch server server/index.js",
+    "client": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "preview": "vite preview",
+    "import:legacy": "node server/import-legacy.js",
+    "lint:sql": "node scripts/check-sql-backticks.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
+    "compression": "^1.8.2",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^8.7.0",
+    "express-session": "^1.18.1",
+    "helmet": "^8.3.0",
+    "ical.js": "^2.1.0",
+    "pg": "^8.13.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.14",
+    "vite": "^6.0.7"
+  }
+}

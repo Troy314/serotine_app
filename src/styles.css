@@ -1,0 +1,711 @@
+/* styles.css — palette pulled directly from serotine.fr's real, current
+   stylesheet (Serotine_fork/css/serotine.css's :root block — the site was
+   rebranded violet/green since an earlier pass here used stale steel-
+   blue/amber values from an old, unverified memory note; see
+   shared/theme.js). --violet-fonce has no real equivalent on the site
+   itself (its palette has no dark shade — everything sits on white paper)
+   — it's a darkened version of --violet, computed here specifically to
+   give this app's dark sidebar rail enough contrast for white text. */
+
+:root {
+  --violet: #65466e;
+  --violet-clair: #db9ced;
+  --violet-fonce: #37263c;
+  --vert: #b1ed4e;
+
+  --paper: #ffffff;
+  --surface: #fcf8f8;
+  --border: rgba(67, 92, 110, 0.16);
+  --text: #3a2c40;
+  --muted: #82738a;
+
+  --success: #4caf6b;
+  --danger: #c0392b;
+
+  /* A *solid* header/frozen-row-or-column band — deliberately not a
+     translucent rgba() overlay (unlike the row-hover/c2r-cell tints
+     further down, which are fine translucent since they never sit under
+     something that scrolls). Anything position:sticky (the table header,
+     the frozen Sujet column) needs a fully opaque background or the rows
+     scrolling underneath it show through — a low-alpha black over
+     "whatever's behind" isn't actually opaque once that "behind" starts
+     moving. */
+  --band: #f7f5f3;
+
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(45, 34, 51, 0.08), 0 1px 2px rgba(45, 34, 51, 0.06);
+}
+
+/* "Mode nuit" — a pure display preference (src/App.jsx's `theme` state,
+   localStorage only, never sent to the server), toggled via a data
+   attribute on <html> rather than @media (prefers-color-scheme) so it's a
+   deliberate user choice, not automatic. Deliberately not a simple
+   inversion of every color: it's the light theme's own idea reversed —
+   light mode sits on white paper with dark violet as the "pop" color
+   (headings, links); dark mode sits on a dark purple surface with the
+   light green (--vert) as the pop color instead, since a dark violet
+   accent would vanish against a dark violet-ish background. */
+[data-theme="dark"] {
+  --paper: #241a2a;
+  --surface: #2c2033;
+  --border: rgba(177, 237, 78, 0.18);
+  --text: #f1ecf4;
+  --muted: #b6a3c1;
+
+  /* --violet still has to double as a solid button *fill* (white text on
+     top — .link-btn, .pane-toggle, .select-chip.active) as well as an
+     accent, so it can't go as light as --vert did — a pale violet here
+     would leave white button labels unreadable. Kept mid-tone (checked:
+     white text on #8a64a0 is ~5:1 contrast, passes AA). The lighter
+     "pop" role (headings, links) is handled by --vert instead, below —
+     not by lightening --violet itself. */
+  --violet: #8a64a0;
+  --violet-clair: #cfa0e0;
+  --violet-fonce: #150e19;
+  --vert: #c3f56a;
+
+  --success: #7fdc9c;
+  --danger: #ef7c70;
+
+  --band: #362a40;
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4 { color: var(--vert); }
+[data-theme="dark"] a { color: var(--vert); }
+/* .link-btn.secondary's text sits directly on --surface (no filled
+   background of its own) — --violet at its dark-mode mid-tone reads at
+   only ~3.2:1 there (fine for a solid white-on-violet button, too low
+   for text-on-surface), so this one spot needs the lighter --violet-clair
+   instead, which clears ~7:1. */
+[data-theme="dark"] .link-btn.secondary { color: var(--violet-clair); }
+/* Same "text-only on --surface" contrast problem as .link-btn.secondary
+   above, for the other spots that use --violet as a plain text color
+   rather than a button fill. */
+[data-theme="dark"] .rp-event-date { color: var(--violet-clair); }
+[data-theme="dark"] .btn-plain { color: var(--violet-clair); }
+/* .btn-plain's light-mode hover darkens the text (violet -> violet-fonce)
+   — the right move on white paper, but violet-fonce is near-black in
+   dark mode, which would make the text nearly vanish against a dark
+   surface on hover instead of standing out. Brightens to --vert instead. */
+[data-theme="dark"] .btn-plain:hover { color: var(--vert); }
+[data-theme="dark"] .cal-more:hover { color: var(--vert); }
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-size: 14px;
+}
+h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 0.5em; color: var(--violet-fonce); }
+a { color: var(--violet); }
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+
+/* ---------------------------------------------------------------- shell */
+
+.hub {
+  display: flex;
+  height: 100vh;
+  height: 100dvh; /* barre d'adresse mobile : 100vh déborde, 100dvh suit la zone réellement visible */
+  overflow: hidden;
+}
+.hub--impersonating { padding-top: 38px; } /* laisse la place à .impersonation-bar, en position fixed donc hors du flux */
+
+/* Barre fixe, toujours visible, tant qu'un super admin navigue "en tant que" quelqu'un d'autre
+   (voir App.jsx) — distincte du reste de l'interface (couleur d'alerte) pour qu'on ne l'oublie pas. */
+.impersonation-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: 38px;
+  background: #c0392b; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 13px; padding: 0 12px; text-align: center;
+}
+.impersonation-bar .link-btn { padding: 4px 10px; font-size: 12px; background: #fff; color: #c0392b; }
+.impersonation-bar .link-btn:hover { background: #f1f1f1; }
+
+.pane-left, .pane-right {
+  flex-shrink: 0;
+  width: 220px;
+  background: var(--violet-fonce);
+  color: #eef2f5;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.15s ease, padding 0.15s ease;
+  overflow: hidden;
+}
+/* Left nav is an icon-only rail — narrow by design, not just a collapsed
+   state of a wider text+icon nav. overflow:visible while expanded (not
+   the .collapsed state) so each icon's hover tooltip (.nav-btn::after,
+   below) can escape the 64px rail to the right instead of being clipped —
+   switched back to hidden only in .collapsed, where the rail is width:0
+   and needs the clip to actually hide its content. */
+.pane-left { width: 64px; align-items: center; overflow: visible; }
+.pane-right { background: var(--surface); color: var(--text); border-left: 1px solid var(--border); width: 280px; }
+.pane-left.collapsed, .pane-right.collapsed { width: 0; overflow: hidden; }
+
+.pane-toggle {
+  position: fixed;
+  top: 6px;
+  z-index: 20;
+  background: var(--violet);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pane-toggle:hover { filter: brightness(0.85); }
+.pane-toggle--left { left: 6px; }
+.pane-toggle--right { right: 6px; }
+
+.pane-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px 32px 60px;
+}
+
+/* left nav — icon-only rail. Top padding on the list itself (there's no
+   separate brand-mark header any more) leaves room for the small
+   collapse toggle (.pane-toggle--left) floating above it. */
+.nav-list { list-style: none; margin: 0; padding: 34px 8px 8px; flex: 1; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.nav-btn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: 0 auto;
+  background: transparent; border: none; color: #d7e0e7;
+  border-radius: 10px; cursor: pointer;
+}
+.nav-btn__icon { font-size: 17px; line-height: 1; }
+.nav-btn__label, .hide-mobile-only { display: none; } /* libellés : visibles seulement dans le tiroir mobile */
+.pane-backdrop { display: none; }
+/* Shows the mark's own colors (white body, black outline detail, green accent)
+   instead of flattening it to a plain white silhouette — the generic
+   `.nav-btn:hover` background highlight below already covers the hover state. */
+.nav-btn__icon--logo img { width: 24px; height: 24px; object-fit: contain; }
+.nav-btn:hover { background: rgba(255,255,255,0.1); }
+.nav-btn.active { background: var(--vert); color: var(--violet-fonce); }
+.nav-footer { padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.12); width: 100%; display: flex; justify-content: center; }
+.nav-footer .nav-btn { color: var(--vert); }
+
+/* Custom hover tooltip for the icon rail — a styled replacement for the
+   native `title` tooltip (slow to appear, unstyled, and would double up
+   with this one), driven purely by CSS from a `data-tooltip` attribute. */
+.nav-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--violet-fonce);
+  color: #fff;
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+.nav-btn[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* right pane */
+.rp-section { padding: 16px; border-bottom: 1px solid var(--border); }
+.rp-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 10px; }
+.rp-event { padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.rp-event:last-child { border-bottom: none; }
+.rp-event-date { font-size: 12px; color: var(--violet); font-weight: 600; }
+.rp-event-title { font-size: 13px; }
+.rp-docs { list-style: none; margin: 0 0 10px; padding: 0; }
+.rp-docs li { padding: 7px 0; border-bottom: 1px dashed var(--border); }
+.rp-docs li:last-child { border-bottom: none; }
+.rp-docs a { font-size: 13px; font-weight: 600; text-decoration: none; word-break: break-word; }
+.rp-docs a:hover { text-decoration: underline; }
+.rp-empty { color: var(--muted); font-size: 13px; font-style: italic; }
+
+/* ------------------------------------------------------------- topbar */
+
+.topbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+}
+.topbar-title { flex: 1; }
+.topbar-title h1 { font-size: 26px; margin: 0; }
+.topbar-sub { color: var(--muted); font-size: 13px; }
+
+.profile-menu { position: relative; }
+.profile-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 14px 6px 6px; cursor: pointer;
+}
+.profile-btn:hover { filter: brightness(0.94); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--violet-clair); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-dropdown {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); min-width: 200px; z-index: 30; overflow: hidden;
+}
+.profile-dropdown button, .profile-dropdown a {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  padding: 10px 14px; cursor: pointer; color: var(--text); text-decoration: none; font-size: 13px;
+}
+.profile-dropdown button:hover, .profile-dropdown a:hover { background: var(--paper); }
+
+/* --------------------------------------------------------------- cards */
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px; margin-bottom: 18px;
+}
+.card h2, .card h3 { margin-top: 0; }
+.link-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.link-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--violet); color: #fff; text-decoration: none;
+  padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  border: none; cursor: pointer;
+}
+.link-btn:hover { background: var(--violet-fonce); }
+.link-btn.secondary { background: var(--surface); color: var(--violet); border: 1px solid var(--violet-clair); }
+
+/* Plain, borderless "+ Moi" self-claim buttons (Relecture/Correction/
+   Source/Enregistrement/Montage quick-join) — a bordered pill read as too
+   heavy repeated down a whole column of table rows; this reads more like
+   a text link. white-space: nowrap keeps "+ Moi" on one line regardless
+   of how narrow its cell gets. */
+.btn-plain {
+  background: none; border: none; padding: 2px 4px;
+  color: var(--violet); font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+}
+.btn-plain:hover { color: var(--violet-fonce); text-decoration: underline; }
+.btn-plain:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+.link-btn.secondary:hover { background: var(--paper); }
+.link-btn.accent { background: var(--vert); color: var(--violet-fonce); }
+
+/* ------------------------------------------------------------- tags */
+
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: #fff;
+}
+.tag {
+  display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 11.5px;
+  background: var(--paper); border: 1px solid var(--border); color: var(--text);
+}
+
+/* -------------------------------------------------------------- forms */
+
+.field { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.field input, .field select, .field textarea {
+  border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; background: var(--surface); color: var(--text);
+}
+.field textarea { resize: vertical; min-height: 70px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.checkbox-field { flex-direction: row; align-items: center; gap: 8px; }
+.checkbox-field label { text-transform: none; font-weight: 500; font-size: 13px; }
+
+/* ------------------------------------------------------------- table */
+/* "Database" views (Tableau de Bohr, Plan de Communication), styled after
+   a Notion database table — flat white surface (no card shadow, no zebra
+   striping), thin grid lines on *both* axes (Notion's table view draws
+   column dividers, not just row ones), a light grey header/group-row
+   band instead of a colored one, pastel property "chips" for select
+   fields (see StatusSelect.jsx) instead of solid-color pills, and a
+   quiet, neutral row-hover instead of an accent tint. */
+
+.table-scroll { border-radius: var(--radius); overflow-x: auto; border: 1px solid var(--border); }
+table.data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; background: var(--surface); }
+.data-table th, .data-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  text-align: left; vertical-align: middle;
+}
+.data-table th:last-child, .data-table td:last-child { border-right: none; }
+.data-table thead th {
+  background: var(--band); color: var(--muted);
+  font-size: 13px; letter-spacing: 0.02em; font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 10px;
+}
+.data-table tbody tr:hover td { background: rgba(0, 0, 0, 0.035); }
+.data-table td.c2r-cell { background: rgba(0, 0, 0, 0.045); }
+.data-table tbody tr:hover td.c2r-cell { background: rgba(0, 0, 0, 0.09); }
+
+/* Header-row-only freeze for tables that don't also need a frozen first
+   column (currently just Plan de Communication) — plain position:sticky
+   on a *single* table's own thead, inside its own bounded .table-scroll.
+   This is deliberately not the same architecture as Tableau de Bohr's
+   .frozen-table (JS-synced separate panes): that rebuild was needed
+   because BohrBoard splits header/column into independent <table>s,
+   which is what made position:sticky unreliable there. A single table
+   with only its header row sticky is the common, well-supported case —
+   scoped to `.table-scroll` specifically so it can't affect
+   .frozen-table__header (BohrBoard's header lives in its own
+   non-scrolling strip now, not a thead sticky). */
+.table-scroll .data-table thead th { position: sticky; top: 0; z-index: 2; }
+
+.issue-heading td {
+  background: var(--band);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
+.issue-heading__count {
+  display: inline-block; margin-left: 6px; color: var(--muted); font-weight: 400; font-size: 11.5px;
+}
+
+/* ----------------------------------------------------- frozen table --- */
+/* Tableau de Bohr's frozen header row + frozen "Sujet" column, rebuilt
+   without position:sticky entirely — sticky inside a <table> turned out
+   to be a genuinely unreliable combination in Chrome (cells misplacing/
+   bleeding into neighbors, worse once a dynamic-content workaround was
+   tried; see the session history if this file has one). Structure
+   instead: three independent pieces arranged in a 2x2 grid — a static
+   corner, a header strip, a narrow column strip, and the body — where
+   only the body (.frozen-table__body) ever scrolls, and only
+   horizontally now (the whole table grows to its full height instead of
+   capping and scrolling vertically, so the page itself scrolls); BohrBoard.jsx's
+   onScroll handler copies its scrollLeft onto the header strip so the
+   header stays "frozen" in place horizontally — this sidesteps the
+   table-sticky bug completely since nothing here uses position:sticky.
+   The scrollTop copy onto the column strip is now a harmless no-op (the
+   column strip no longer scrolls vertically either), kept rather than
+   special-cased out. Each strip renders its own <table>, so row heights
+   across strips are kept in sync by BohrBoard.jsx giving each matching
+   row pair an explicit, identical `height` (see `subjectRowHeight`
+   there) rather than relying on independent tables to naturally agree —
+   they won't, once the Sujet textarea wraps to more than one line.
+*/
+.frozen-table {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: auto auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.frozen-table__corner {
+  grid-column: 1; grid-row: 1;
+  display: flex; align-items: center;
+  background: var(--band); color: var(--muted);
+  font-size: 13px; letter-spacing: 0.02em; font-weight: 600;
+  border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 9px 10px;
+}
+.frozen-table__header { grid-column: 2; grid-row: 1; overflow: hidden; }
+.frozen-table__header .data-table thead th:last-child { border-right: none; }
+.frozen-table__col { grid-column: 1; grid-row: 2; overflow-x: hidden; overflow-y: visible; border-right: 1px solid var(--border); }
+.frozen-table__body { grid-column: 2; grid-row: 2; overflow-x: auto; overflow-y: visible; }
+/* The header/col strips' own tables never show a scrollbar (overflow:
+   hidden — their scroll position is only ever set programmatically), so
+   this is purely about the one real scrollbar, on .frozen-table__body. */
+
+/* Row-only variant (Plan de Communication) — no frozen column, so no
+   grid/corner needed, just the header strip stacked above the one real
+   scroll surface. Reuses .frozen-table__header/__body as-is (their
+   grid-column/-row declarations simply don't apply outside a grid
+   container). */
+.frozen-table--row-only { display: flex; flex-direction: column; }
+.frozen-table--row-only .frozen-table__header { flex-shrink: 0; }
+.frozen-table--row-only .frozen-table__body { flex: 1; }
+
+.subject-cell a { color: inherit; }
+.editable-cell { cursor: text; }
+
+/* normalize in-cell inputs/selects so a dense grid of them still reads
+   clean — consistent height, no border until interacted with, visible
+   focus ring, matching Notion's "cells look like plain text until you
+   touch them" convention */
+.data-table input[type="text"], .data-table input:not([type]), .data-table input[type="number"],
+.data-table input[type="date"], .data-table input[type="url"], .data-table select, .data-table textarea {
+  border: 1px solid transparent; background: transparent; border-radius: 5px;
+  padding: 4px 6px; color: var(--text); transition: border-color 0.12s, background 0.12s;
+}
+.data-table input:hover, .data-table select:hover, .data-table textarea:hover { border-color: var(--border); background: var(--paper); }
+.data-table input:focus, .data-table select:focus, .data-table textarea:focus {
+  outline: none; border-color: var(--violet-clair); background: var(--surface);
+  box-shadow: 0 0 0 2px rgba(219, 156, 237, 0.25);
+}
+.data-table input:disabled, .data-table select:disabled { color: var(--muted); cursor: default; }
+
+/* Notion-style pastel property chip — light tinted background, solid-
+   color text/border, small (not fully pill-shaped) radius. Used by
+   StatusSelect.jsx and the .tag class shared elsewhere. `--chip-color`
+   is set inline per instance from the option's real color. */
+/* Layout only — color/background/border-color are computed in JS
+   (src/lib/color.js's chipStyle()) and set per-instance via inline
+   style, not CSS color-mix(): that function needs a fairly recent
+   browser (Chrome 111+/Firefox 113+/Safari 16.4+) and silently produces
+   an invalid, colorless declaration on anything older — a real bug once
+   shipped this way, caught when color tags stopped showing up at all. */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 6px; padding: 3px 9px; font-size: 12px; font-weight: 600;
+  border: 1px solid transparent;
+}
+select.chip { cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; padding-right: 20px; }
+
+/* --------------------------------------------------------- kanban --- */
+/* Trello-style drag-and-drop board, one per Bohr "step" (see
+   BohrKanban.jsx) — plain HTML5 drag-and-drop, no library. */
+
+.kanban-issue { margin-bottom: 18px; }
+.kanban-issue__head {
+  background: var(--band); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-weight: 600; font-size: 12.5px; padding: 7px 10px; margin-bottom: 10px;
+}
+.kanban-issue__count { display: inline-block; margin-left: 6px; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+.kanban-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.kanban-col {
+  flex: 0 0 240px; background: rgba(0, 0, 0, 0.035); border: 1px solid var(--border);
+  border-radius: var(--radius); display: flex; flex-direction: column;
+  transition: background 0.12s, border-color 0.12s;
+}
+.kanban-col--over { background: color-mix(in srgb, var(--violet-clair) 16%, var(--surface)); border-color: var(--violet-clair); }
+.kanban-col__head {
+  display: flex; align-items: center; gap: 6px; padding: 10px 12px;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.kanban-col__count { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 11.5px; }
+.kanban-col__body { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.kanban-col__empty { padding: 10px; text-align: center; }
+.kanban-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; box-shadow: 0 1px 2px rgba(45, 34, 51, 0.05);
+}
+.kanban-card:hover { border-color: var(--violet-clair); }
+.kanban-card__title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.kanban-card__meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+.kanban-card__foot { margin-top: 2px; }
+.kanban-card__roles { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; font-size: 12px; }
+.kanban-card__role { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.kanban-card__roles b { font-weight: 600; color: var(--text); }
+.member-picker { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; max-width: 100%; }
+.mp-name, .mp-x { background: none; border: none; padding: 0; margin: 0; color: inherit; font: inherit; cursor: pointer; }
+.mp-x { opacity: 0.6; font-size: 10px; } .mp-x:hover { opacity: 1; }
+.mp-input { width: 150px; max-width: 100%; padding: 3px 8px; border: 1px solid var(--violet-clair); border-radius: 999px; font-size: 12px; }
+.mp-list { list-style: none; margin: 0; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); max-height: 220px; overflow-y: auto; z-index: 60; font-size: 13px; }
+.mp-option { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.mp-option.active { background: var(--violet); color: #fff; }
+.mp-empty { padding: 6px 8px; color: var(--muted); font-style: italic; }
+@media (max-width: 900px) { .mp-input { font-size: 16px; } .mp-option { padding: 11px 10px; } }
+
+/* -------------------------------------------------------- calendar --- */
+/* Plan de Communication's month view (ComCalendar.jsx) — Monday-start
+   7-column grid, same shape as achievement-vault's Agenda.jsx (the only
+   prior art for a calendar view in this codebase's sibling project). */
+
+/* Row 1 is the weekday-label strip (auto height); the 6 rows below it are
+   the actual 42-cell day grid — fixed to a uniform height so every day
+   cell is the same size regardless of how many posts land on a given
+   day (capped visually anyway, but a taller title could otherwise still
+   push one cell's row taller than its neighbors). */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto repeat(6, 100px); gap: 1px; background: var(--border); padding: 1px; }
+.cal-weekday { background: rgba(0, 0, 0, 0.045); text-align: center; padding: 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.cal-day { background: var(--surface); height: 100px; padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.cal-day--out { background: var(--paper); opacity: 0.55; }
+.cal-day__head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
+.cal-day__add { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 11px; }
+.cal-day__add:hover { background: var(--border); color: var(--text); }
+.cal-day__pills { display: flex; flex-direction: column; gap: 3px; }
+/* color/background set per-instance via chipStyle() (src/lib/color.js),
+   same reasoning as .chip above — no color-mix() dependency. */
+.cal-pill {
+  border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.cal-more { background: none; border: none; color: var(--muted); font-size: 11px; text-align: left; cursor: pointer; padding: 0 4px; }
+.cal-more:hover { color: var(--violet); }
+
+/* ------------------------------------------------------------ misc */
+
+.section-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.select-chip {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+  padding: 6px 14px; font-size: 13px; cursor: pointer;
+  color: var(--violet); /* same accent color as .link-btn, for the same reason .tab-btn uses it above */
+}
+/* brightness(<1) rather than a fixed hover color — darkens whatever the
+   chip's current background already is (plain --surface, or --violet
+   once .active), so one rule covers both states and both themes instead
+   of needing a separate hover color per case. */
+.select-chip:hover { filter: brightness(0.94); }
+.select-chip.active { background: var(--violet); color: #fff; border-color: var(--violet); }
+/* Dark mode ("mode nuit"): .active matches .link-btn exactly — solid
+   --violet fill, white text, hover darkens to --violet-fonce, same as
+   .link-btn's own hover. The *inactive* chip stays deliberately darker/
+   dimmer than that (--paper, darker than --surface, with --violet-clair
+   text) rather than also going full violet — with every chip in a group
+   filled the same bright violet there was no way left to tell which one
+   was actually selected (e.g. which season). Inactive still brightens to
+   the same --violet-fonce on hover as a preview of what clicking it does. */
+[data-theme="dark"] .select-chip {
+  background: var(--paper); color: var(--violet-clair); border-color: var(--border);
+}
+[data-theme="dark"] .select-chip:hover { filter: none; background: var(--violet-fonce); color: #fff; border-color: var(--violet-fonce); }
+[data-theme="dark"] .select-chip.active {
+  background: var(--violet); color: #fff; border-color: var(--violet);
+}
+[data-theme="dark"] .select-chip.active:hover { background: var(--violet-fonce); border-color: var(--violet-fonce); }
+[data-theme="dark"] .profile-btn {
+  background: var(--violet); color: #fff; border-color: var(--violet);
+}
+[data-theme="dark"] .profile-btn:hover { filter: none; background: var(--violet-fonce); border-color: var(--violet-fonce); }
+[data-theme="dark"] .profile-btn .avatar { background: rgba(255, 255, 255, 0.25); }
+.muted { color: var(--muted); }
+/* Cellule « Texte » du Plan de com : aperçu de 3 lignes qui ouvre la fenêtre d'édition. */
+.texte-btn { display: block; width: 220px; max-width: 100%; text-align: left; background: transparent; border: 1px dashed var(--border); border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--text); min-height: 44px; }
+.texte-btn:hover { border-color: var(--violet); }
+.texte-btn__preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+.small { font-size: 12px; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(35, 48, 58, 0.55);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+}
+.modal-box {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+  max-width: 640px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 24px;
+}
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; color: var(--muted); padding: 4px; }
+.icon-btn:hover { color: var(--text); }
+
+.color-swatch { width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--border); display: inline-block; vertical-align: middle; }
+
+.login-screen {
+  position: relative;
+  height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--violet-fonce);
+  color: #fff; text-align: center; gap: 18px; padding: 20px;
+}
+.login-screen .theme-toggle { position: absolute; top: 20px; right: 20px; }
+.login-screen h1 { color: #fff; font-size: 32px; }
+.login-screen p { color: #d7e0e7; max-width: 420px; }
+.discord-btn {
+  background: #5865f2; color: #fff; border: none; border-radius: 8px;
+  padding: 12px 28px; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 10px; align-items: center;
+}
+.discord-btn:hover { background: #4752c4; }
+.error-box { background: rgba(192,57,43,0.15); border: 1px solid var(--danger); color: #fff; padding: 12px 18px; border-radius: 8px; max-width: 460px; }
+
+.iframe-tool { width: 100%; height: 78vh; border: 1px solid var(--border); border-radius: var(--radius); }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+.tab-btn {
+  /* var(--violet) — the same accent color .link-btn uses — rather than
+     --muted for the inactive state — dimming a whole label to signal
+     "not selected" reads as low-contrast/hard-to-read. Active vs inactive
+     still reads clearly via weight + the underline, not via making one of
+     them faint. */
+  background: none; border: none; padding: 10px 16px; cursor: pointer; font-size: 13px;
+  color: var(--violet); border-bottom: 2px solid transparent; flex-shrink: 0;
+}
+.tab-btn:hover { color: var(--violet-fonce); }
+.tab-btn.active { color: var(--violet); border-bottom-color: var(--vert); font-weight: 600; }
+/* --violet is a mid-tone in dark mode (kept dark enough to still work as
+   a white-text button fill elsewhere) — too low-contrast as plain text on
+   --surface, so dark mode reads it via --violet-clair (inactive) / --vert
+   (hover + active) instead, same substitution already used for
+   .btn-plain/.rp-event-date/.link-btn.secondary above. */
+[data-theme="dark"] .tab-btn { color: var(--violet-clair); }
+[data-theme="dark"] .tab-btn:hover { color: var(--vert); }
+[data-theme="dark"] .tab-btn.active { color: var(--vert); }
+
+.admin-only-note { font-size: 12px; color: var(--muted); font-style: italic; }
+
+.viz-root, :root { --viz-1: #2a78d6; --viz-2: #eb6834; }            /* palette par défaut du skill dataviz, emplacements 1-2, mode clair */
+[data-theme="dark"] { --viz-1: #3987e5; --viz-2: #d95926; }       /* les mêmes teintes, recalées pour le fond sombre */
+.viz-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 12.5px; margin-bottom: 6px; }
+.viz-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+.viz-tip { position: absolute; top: 8px; z-index: 5; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 10px; font-size: 12px; pointer-events: none; white-space: nowrap; }
+.viz-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.viz-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--paper); }
+.viz-tile strong { font-size: 22px; font-family: Georgia, serif; }
+.tag--gone { opacity: 0.65; font-style: italic; }
+.todo-list { list-style: none; margin: 0; padding: 0; }
+.todo-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+.todo-item:last-child { border-bottom: none; }
+.todo-item__main { min-width: 0; flex: 1; }
+.todo-item__side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.team-group { border-top: 1px solid var(--border); padding: 8px 0; }
+.team-group > summary { cursor: pointer; padding: 6px 0; min-height: 32px; display: flex; align-items: center; gap: 8px; }
+.todo-count { font-weight: 700; font-size: 13px; padding: 2px 8px; border-radius: 999px; background: rgba(237, 175, 85, 0.25); color: var(--text); }
+.todo-count--ok { background: rgba(27, 175, 122, 0.22); }
+.todo-count--none { background: rgba(192, 57, 43, 0.18); }
+@media (max-width: 900px) { .todo-item { flex-direction: column; align-items: stretch; } .todo-item__side { justify-content: space-between; } }
+
+/* ------------------------------------------------- téléphone / tablette étroite */
+
+@media (max-width: 900px) {
+  /* Les deux panneaux deviennent des tiroirs par-dessus le contenu (fermés par défaut, voir App.jsx) + voile cliquable. */
+  .pane-left, .pane-right {
+    position: fixed; top: 0; bottom: 0; z-index: 25; box-shadow: var(--shadow);
+    transition: transform 0.2s ease; overflow-y: auto; overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pane-left { left: 0; width: min(260px, 82vw); align-items: stretch; overflow: auto; }
+  .pane-right { right: 0; width: min(320px, 88vw); }
+  .pane-left.collapsed, .pane-right.collapsed { width: auto; overflow: hidden; visibility: hidden; transition: transform 0.2s ease, visibility 0s 0.2s; }
+  .pane-left.collapsed { width: min(260px, 82vw); transform: translateX(-100%); }
+  .pane-right.collapsed { width: min(320px, 88vw); transform: translateX(100%); }
+  .pane-backdrop { display: block; position: fixed; inset: 0; z-index: 22; background: rgba(20, 10, 30, 0.5); }
+
+  /* Boutons d'ouverture : vraies cibles tactiles (≥ 44 px), dans les coins, au-dessus du contenu. */
+  .pane-toggle { width: 44px; height: 44px; font-size: 16px; top: max(6px, env(safe-area-inset-top)); z-index: 30; border-radius: 10px; }
+  .pane-toggle--left { left: 8px; }
+  .pane-toggle--right { right: 8px; }
+
+  .pane-main { padding: calc(8px + env(safe-area-inset-top)) 12px calc(48px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
+  .topbar { flex-wrap: wrap; gap: 8px; margin-bottom: 14px; justify-content: center; }
+  /* Titre sur la même ligne que les deux boutons de tiroirs (fixes dans les coins) : marges de 52 px de chaque côté. */
+  .topbar-title { flex: 1 1 100%; order: -1; min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 0 52px; text-align: center; margin-bottom: 4px; }
+  .topbar-title h1 { font-size: 19px; line-height: 1.15; }
+  .topbar-sub { display: none; }
+  .hide-mobile { display: none; }
+
+  /* Navigation : icône + libellé, lignes de 48 px. */
+  .nav-list { padding: calc(64px + env(safe-area-inset-top)) 8px 8px; }
+  .nav-btn { width: 100%; height: 48px; justify-content: flex-start; gap: 14px; padding: 0 14px; margin: 0; }
+  .nav-btn__icon { width: 22px; text-align: center; }
+  .nav-btn__label { display: inline; font-size: 15px; }
+  .nav-btn[data-tooltip]::after { display: none; }
+  .nav-footer { justify-content: stretch; padding: 8px; }
+
+  /* Tactile : zones de 44 px, champs à 16 px (sinon iOS zoome à la mise au point), pas de survol. */
+  .select-chip, .link-btn, .tab-btn, .btn-plain, .profile-btn { min-height: 40px; }
+  input, select, textarea { font-size: 16px; }
+  .row-2 { grid-template-columns: 1fr; }
+  .profile-dropdown { right: 0; min-width: min(220px, 90vw); }
+  .card { padding: 14px; }
+
+  /* Cellules de tableau et petites icônes : zones de toucher confortables sans gonfler la mise en page. */
+  .icon-btn { min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+  td select, td input:not([type=checkbox]):not([type=radio]) { min-height: 36px; }
+  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+  /* Le sélecteur de date natif a besoin de ~150 px à 16 px de police : dans une cellule étroite on réduit un peu (14 px) plutôt que de rogner l'année. */
+  td input[type=date] { width: 100% !important; font-size: 14px; padding: 6px 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pane-left, .pane-right { transition: none; }
+}
